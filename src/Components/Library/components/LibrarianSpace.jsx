@@ -4,6 +4,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadCont
 import { contractConfig } from "../../../config/wagmiConfig";
 import { roleManagementService } from "../../../services/firebase";
 import { web3RoleService } from "../../../services/web3";
+import { useMembers } from "../../Members/MembersContext";
 
 // =============== CONSTANTS ===============
 const WEB3_ROLES = [
@@ -11,6 +12,46 @@ const WEB3_ROLES = [
   { name: "Validateur", value: "VALIDATOR" },
   { name: "Administrateur", value: "ADMIN" }
 ];
+
+// =============== UTILITY FUNCTIONS ===============
+const formatDate = (timestamp) => {
+  if (!timestamp) return 'N/A';
+
+  try {
+    let date;
+    if (timestamp.toDate) {
+      date = timestamp.toDate();
+    } else if (timestamp.seconds) {
+      date = new Date(timestamp.seconds * 1000);
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else {
+      date = new Date(timestamp);
+    }
+
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid Date';
+  }
+};
+
+const sortByDate = (a, b) => {
+  try {
+    const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+    const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+    return dateB - dateA;
+  } catch (error) {
+    console.error('Error sorting dates:', error);
+    return 0;
+  }
+};
 
 // =============== COMPONENT ===============
 export default function LibrarianSpace() {
@@ -36,6 +77,7 @@ export default function LibrarianSpace() {
   const [error, setError] = useState(null);
   const [txHash, setTxHash] = useState(null);
   const [transactionStatus, setTransactionStatus] = useState(null);
+  const { members } = useMembers();
 
   // =============== EFFECTS ===============
   // Remplacer toute la section des effects par :
@@ -64,6 +106,7 @@ export default function LibrarianSpace() {
       setError('Transaction failed');
     }
   });
+
 
   // =============== HANDLERS ===============
   // Remplacer toute la section des handlers par :
@@ -208,25 +251,64 @@ export default function LibrarianSpace() {
 
         {/* Form */}
         <form className="space-y-4">
+          {/* Member Selection */}
           <div>
-            <label className="block mb-2">Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Member Organisation
+            </label>
+            <select
+              className="w-full border rounded p-2 bg-white"
+              value={formData.memberId}
+              onChange={(e) => {
+                const selectedMember = members.find(m => m.id === Number(e.target.value));
+                setFormData({
+                  ...formData,
+                  memberId: e.target.value,
+                  memberName: selectedMember?.name || '',
+                  category: selectedMember?.category || '',
+                  country: selectedMember?.country || ''
+                });
+              }}
+              required
+            >
+              <option value="">Select a member organisation</option>
+              {members
+                .filter(m => m.isVisible)
+                .map(member => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} ({member.category} - {member.country})
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          {/* Existing Address field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Wallet Address
+            </label>
             <input
               type="text"
               className="w-full border rounded p-2"
               value={formData.address}
               onChange={(e) => setFormData({...formData, address: e.target.value})}
               placeholder="0x..."
+              required
             />
           </div>
 
+          {/* Existing Role field */}
           <div>
-            <label className="block mb-2">Role</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Role
+            </label>
             <select
-              className="w-full border rounded p-2"
+              className="w-full border rounded p-2 bg-white"
               value={formData.role}
               onChange={(e) => setFormData({...formData, role: e.target.value})}
+              required
             >
-              <option value="">Select Role</option>
+              <option value="">Select a role</option>
               {WEB3_ROLES.map(role => (
                 <option key={role.value} value={role.value}>
                   {role.name}
@@ -237,9 +319,9 @@ export default function LibrarianSpace() {
 
           <button
             type="button"
-            className="w-full bg-blue-500 text-white rounded p-2"
+            className="w-full bg-blue-500 text-white rounded p-2 hover:bg-blue-600 disabled:bg-gray-300"
             onClick={() => handleSubmit(activeTab)}
-            disabled={isTxPending}
+            disabled={isTxPending || !formData.memberId || !formData.address || !formData.role}
           >
             {isTxPending ? 'Processing...' : activeTab === 'register' ? 'Register' : 'Revoke'}
           </button>
@@ -247,41 +329,53 @@ export default function LibrarianSpace() {
 
         {/* Roles Registry */}
         {rolesRegistry.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-8 w-full">
             <h3 className="text-lg font-bold mb-4">Registered Roles</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
+            <div className="w-full">
+              <table className="w-full table-auto divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2">Address</th>
-                    <th className="px-4 py-2">Role</th>
-                    <th className="px-4 py-2">Date</th>
-                    <th className="px-4 py-2">Transaction</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Member Organisation
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Wallet Address
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Transaction
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="bg-white divide-y divide-gray-200">
                   {rolesRegistry
-                    .sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis())
+                    .sort((a, b) => b.createdAt?.toDate?.() - a.createdAt?.toDate?.())
                     .map((role) => (
-                      <tr key={role.id} className="border-t">
-                        <td className="px-4 py-2">{role.address}</td>
-                        <td className="px-4 py-2">{role.role}</td>
-                        <td className="px-4 py-2">
-                          {role.createdAt?.toDate().toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                      <tr key={role.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 text-sm min-w-[200px]">
+                          {role.memberName}
                         </td>
-                        <td className="px-4 py-2">
+                        <td className="px-4 py-2 text-sm whitespace-nowrap font-mono">
+                          {role.address.slice(0, 6)}...{role.address.slice(-4)}
+                        </td>
+                        <td className="px-4 py-2 text-sm whitespace-nowrap">
+                          {role.role}
+                        </td>
+                        <td className="px-4 py-2 text-sm whitespace-nowrap text-gray-500">
+                          {formatDate(role.createdAt)}
+                        </td>
+                        <td className="px-4 py-2 text-sm whitespace-nowrap">
                           {role.transactionHash && (
                             <a
                               href={`https://sepolia.etherscan.io/tx/${role.transactionHash}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-500 hover:underline"
+                              className="text-blue-500 hover:underline font-mono"
                             >
                               {`${role.transactionHash.slice(0, 6)}...${role.transactionHash.slice(-4)}`}
                             </a>
