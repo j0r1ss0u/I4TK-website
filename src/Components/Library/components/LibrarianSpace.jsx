@@ -80,7 +80,7 @@ export default function LibrarianSpace() {
   const { members } = useMembers();
 
   // =============== EFFECTS ===============
-  // Remplacer toute la section des effects par :
+ 
   useEffect(() => {
     loadRoles();
   }, []);
@@ -109,7 +109,6 @@ export default function LibrarianSpace() {
 
 
   // =============== HANDLERS ===============
-  // Remplacer toute la section des handlers par :
   async function handleTransactionSuccess(receipt) {
     try {
       console.log('Starting handleTransactionSuccess with receipt:', receipt);
@@ -169,15 +168,30 @@ export default function LibrarianSpace() {
         return;
       }
 
-      const roleHash = contractConfig.roles[`${formData.role}_ROLE`];
-      console.log('Role hash:', roleHash);
-      const functionName = action === 'register' ? 'grantRole' : 'revokeRole';
+      // Mapper les rôles vers les profils du smart contract
+      let profile;
+      switch(formData.role) {
+        case 'CONTRIBUTOR':
+          profile = 1; // Profiles.researcher
+          break;
+        case 'VALIDATOR':
+          profile = 2; // Profiles.labs
+          break;
+        case 'ADMIN':
+          profile = 3; // Profiles.admin
+          break;
+        default:
+          setError('Invalid role');
+          return;
+      }
 
-      // Blockchain transaction
+      const functionName = action === 'register' ? 'registerMember' : 'revokeMember';
+
+      // Transaction blockchain
       const tx = await writeContractAsync({
         ...contractConfig,
         functionName,
-        args: [roleHash, formData.address],
+        args: [formData.address, profile],
       });
 
       console.log('Transaction submitted:', tx);
@@ -189,6 +203,10 @@ export default function LibrarianSpace() {
           role: formData.role,
           status: 'PENDING',
           transactionHash: tx,
+          memberId: formData.memberId,
+          memberName: formData.memberName,
+          category: formData.category,
+          country: formData.country,
           createdAt: new Date().toISOString()
         };
 
@@ -212,7 +230,7 @@ export default function LibrarianSpace() {
     setTxHash(null);
     setTransactionStatus(null);
   }
-
+  
   // =============== RENDER CONDITIONS ===============
   if (!hasAdminRole) {
     return (
