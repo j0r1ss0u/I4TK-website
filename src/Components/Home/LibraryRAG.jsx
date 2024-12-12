@@ -57,8 +57,8 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
 
   return (
     <div className="container mx-auto">
-      <h2 className="text-2xl font-bold mb-6">
-        {currentLang === 'en' ? 'Search Library' : 'Rechercher dans la bibliothèque'}
+      <h2 className="font-serif text-2xl font-bold mb-6">
+        {currentLang === 'en' ? 'Internet for Trust knowledge network answers you :' : 'Le réseau Internet for Trust vous répond'}
       </h2>
 
       {/* Barre de recherche */}

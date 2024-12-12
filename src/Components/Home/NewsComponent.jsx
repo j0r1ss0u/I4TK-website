@@ -1,122 +1,121 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const NewsComponent = ({ currentLang = 'en' }) => {
-  // Données mockées pour simuler les actualités
-  const mockNews = [
-    {
-      id: '1',
-      webTitle: 'AI Research Breakthrough in Climate Change Analysis',
-      webPublicationDate: '2024-12-08T10:00:00Z',
-      webUrl: '#',
-      fields: {
-        trailText: 'New AI models help scientists better predict climate change patterns and potential solutions',
-        // Utilisation d'une image placeholder en ligne
-        thumbnail: 'https://picsum.photos/800/400?random=1'
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const GUARDIAN_API_KEY = import.meta.env.VITE_GUARDIAN_API_KEY;
+  const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+  const fetchGuardianNews = async () => {
+    try {
+      setLoading(true);
+      const apiUrl = new URL('https://content.guardianapis.com/search');
+      apiUrl.searchParams.append('api-key', GUARDIAN_API_KEY);
+      apiUrl.searchParams.append('section', 'science|technology|environment');
+      apiUrl.searchParams.append('show-fields', 'thumbnail,trailText');
+      apiUrl.searchParams.append('page-size', '6');
+      apiUrl.searchParams.append('order-by', 'newest');
+
+      console.log('Fetching from:', apiUrl.toString()); // Pour le débogage
+
+      const response = await fetch(apiUrl.toString());
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
       }
-    },
-    {
-      id: '2',
-      webTitle: 'Global Think Tanks Unite for Sustainable Development',
-      webPublicationDate: '2024-12-08T09:30:00Z',
-      webUrl: '#',
-      fields: {
-        trailText: 'Major research centers collaborate on innovative approaches to achieve UN Sustainable Development Goals',
-        thumbnail: 'https://picsum.photos/800/400?random=2'
+
+      const data = await response.json();
+
+      if (!data.response || !data.response.results) {
+        throw new Error('Invalid API response format');
       }
-    },
-    {
-      id: '3',
-      webTitle: 'Technology Innovation in Educational Research',
-      webPublicationDate: '2024-12-08T09:00:00Z',
-      webUrl: '#',
-      fields: {
-        trailText: 'How new technologies are transforming academic research methodologies worldwide',
-        thumbnail: 'https://picsum.photos/800/400?random=3'
-      }
-    },
-    {
-      id: '4',
-      webTitle: 'Academic Collaboration Platform Launch',
-      webPublicationDate: '2024-12-08T08:30:00Z',
-      webUrl: '#',
-      fields: {
-        trailText: 'New digital platform connects researchers across Global South and North',
-        thumbnail: 'https://picsum.photos/800/400?random=4'
-      }
-    },
-    {
-      id: '5',
-      webTitle: 'Research Impact on Policy Making',
-      webPublicationDate: '2024-12-08T08:00:00Z',
-      webUrl: '#',
-      fields: {
-        trailText: 'How academic research is influencing global policy decisions',
-        thumbnail: 'https://picsum.photos/800/400?random=5'
-      }
-    },
-    {
-      id: '6',
-      webTitle: 'Digital Innovation in Think Tanks',
-      webPublicationDate: '2024-12-08T07:30:00Z',
-      webUrl: '#',
-      fields: {
-        trailText: 'Think tanks embrace digital transformation to enhance research capabilities',
-        thumbnail: 'https://picsum.photos/800/400?random=6'
-      }
+
+      setNews(data.response.results);
+      setError(null);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchGuardianNews();
+    const interval = setInterval(fetchGuardianNews, REFRESH_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(
+      currentLang === 'en' ? 'en-GB' : 'fr-FR',
+      { day: '2-digit', month: '2-digit', year: 'numeric' }
+    );
+  };
+
+  if (loading && news.length === 0) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto">
-      <h2 className="text-2xl font-bold mb-6">
-        {currentLang === 'en' ? 'Latest News' : 'Actualités'}
-      </h2>
+    <div className="container mx-auto p-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {mockNews.map((article) => (
+        {news.map((article) => (
           <article key={article.id} className="bg-white/50 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
-            {/* Conteneur d'image avec fallback en cas d'erreur */}
             <div className="w-full h-48 bg-gray-100">
               <img 
-                src={article.fields.thumbnail}
+                src={article.fields?.thumbnail || '/api/placeholder/800/400'}
                 alt={article.webTitle}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.target.onerror = null; // Empêche les boucles infinies
-                  e.target.style.display = 'none'; // Cache l'image si elle ne charge pas
-                  e.target.parentElement.classList.add('flex', 'items-center', 'justify-center');
-                  e.target.parentElement.innerHTML = `
-                    <div class="text-gray-400 text-center p-4">
-                      <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <path d="M20.4 14.5L16 10 4 20"></path>
-                      </svg>
-                      <span>Image not available</span>
-                    </div>
-                  `;
+                  e.target.onerror = null;
+                  e.target.src = '/api/placeholder/800/400';
                 }}
               />
             </div>
             <div className="p-4">
-              <h3 className="text-xl font-semibold mb-2">
+              <h3 className="font-serif text-2xl mb-2 text-gray-800">
                 {article.webTitle}
               </h3>
-              <p className="text-gray-600 mb-4">
-                {article.fields.trailText}
+              <p className="text-sm text-gray-600 mb-4 font-serif">
+                {article.fields?.trailText}
               </p>
               <div className="flex justify-between items-center">
                 <a 
                   href={article.webUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800"
+                  className="font-serif text-blue-600 hover:text-blue-800"
                 >
                   {currentLang === 'en' ? 'Read more' : 'Lire plus'}
                 </a>
-                <span className="text-sm text-gray-500">
-                  {new Date(article.webPublicationDate).toLocaleDateString(
-                    currentLang === 'en' ? 'en-US' : 'fr-FR'
-                  )}
+                <span className="font-serif text-sm text-gray-500">
+                  {formatDate(article.webPublicationDate)}
                 </span>
               </div>
             </div>
