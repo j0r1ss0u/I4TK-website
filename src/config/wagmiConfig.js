@@ -7,17 +7,18 @@ import { createPublicClient, createWalletClient, custom } from 'viem';
 // =============== CHAIN CONFIGURATION ===============
 export const chains = [sepolia];
 
-// =============== WAGMI CONFIGURATION ===============
-const publicClient = createPublicClient({
+// =============== PUBLIC CLIENT & WALLET CLIENT ===============
+export const publicClient = createPublicClient({
   chain: sepolia,
   transport: http()
 });
 
-const walletClient = createWalletClient({
+export const walletClient = createWalletClient({
   chain: sepolia,
   transport: custom(window.ethereum)
 });
 
+// =============== WAGMI CONFIGURATION ===============
 export const config = createConfig({
   chains: [sepolia],
   transports: {
@@ -29,13 +30,13 @@ export const config = createConfig({
 // =============== CONTRACT CONFIGURATION ===============
 export const contractConfig = {
   address: '0xa9870f477E6362E0810948fd87c0398c2c0a4F55',
-  // Les rôles du contrat en constantes - conservés de la version précédente
   roles: {
     CONTRIBUTOR_ROLE: '0xe2889e7308860b3fe8df0daa86fccfea4d71e43776719a57be28cf90b6db81e9',
     VALIDATOR_ROLE: '0x21702c8af46127c7fa207f89d0b0a8441bb32959a0ac7df790e9ab1a25c98926',
     ADMIN_ROLE: '0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775',
     MINTER_ROLE: '0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6'
   },
+
   // Nouvelle ABI complète du contrat I4TKNetwork
   abi: [
     {
@@ -171,9 +172,7 @@ export const contractConfig = {
 export const getContractConfig = () => {
   return {
     address: contractConfig.address,
-    abi: contractConfig.abi,
-    publicClient,
-    walletClient
+    abi: contractConfig.abi
   };
 };
 
@@ -182,5 +181,4 @@ export const getRoleHash = (role) => {
   return contractConfig.roles[`${role}_ROLE`];
 };
 
-export { publicClient, walletClient };
 export default config;

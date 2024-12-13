@@ -1,6 +1,6 @@
 // =============== IMPORTS ===============
-import React, { useState } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import React, { useState, useEffect } from 'react';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { contractConfig } from '../../../config/wagmiConfig';
 import { documentsService } from '../../../services/documentsService';
 
@@ -42,14 +42,21 @@ const NetworkHelp = () => (
 
 // =============== MAIN COMPONENT ===============
 export default function SubmitContribution() {
-  // =============== HOOKS AND STATES ===============
+  // =============== STATE AND HOOKS ===============
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const [showNetworkHelp, setShowNetworkHelp] = useState(false);
   const [error, setError] = useState('');
   const [txHash, setTxHash] = useState(null);
   const [documentId, setDocumentId] = useState(null);
+  const [processingReceipt, setProcessingReceipt] = useState(false);
 
+  const { data: receipt, isLoading: isTxPending, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({
+    hash: txHash,
+    enabled: !!txHash
+  });
+
+  // =============== FORM STATE ===============
   const [formData, setFormData] = useState({
     ipfsCid: '',
     title: '',
@@ -60,78 +67,129 @@ export default function SubmitContribution() {
     references: ''
   });
 
-  // Transaction monitoring
-  const { isLoading: isTxPending, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({
-    hash: txHash,
-    enabled: !!txHash
-  });
+  // =============== EXTRACTION FUNCTION ===============
+  const extractTokenIdFromEvent = (logs) => {
+    console.log('=== Starting TokenID Extraction ===');
 
-  // =============== HANDLERS ===============
+    // Log tous les événements pour debug
+    console.log('All logs:', logs.map(log => ({
+      address: log.address,
+      topics: log.topics,
+      name: log.name || 'unknown',
+      args: log.args
+    })));
+
+    // Trouver l'événement Propose Content
+    const proposeEvent = logs.find(log => {
+      const isCorrectContract = log.address.toLowerCase() === contractConfig.address.toLowerCase();
+      const isProposeContent = log.name === 'contentProposed' || log.topics[0] === contentProposedTopic;
+
+      console.log('Checking log:', {
+        address: log.address,
+        isCorrectContract,
+        name: log.name,
+        isProposeContent,
+        topics: log.topics
+      });
+
+      return isCorrectContract && isProposeContent;
+    });
+
+    if (!proposeEvent) {
+      throw new Error('Événement Propose Content non trouvé');
+    }
+
+    // Extraire le tokenId
+    const tokenIdHex = proposeEvent.topics[1];
+    const tokenId = parseInt(tokenIdHex.slice(-2), 16);
+
+    console.log('Found token ID:', tokenId);
+    return tokenId;
+  };
+  // =============== RECEIPT PROCESSING ===============
+  useEffect(() => {
+    const processTransactionReceipt = async () => {
+      if (!receipt || !isTxSuccess || processingReceipt) return;
+
+      try {
+        setProcessingReceipt(true);
+        console.log('=== Processing Transaction Receipt ===');
+
+        const tokenId = extractTokenIdFromEvent(receipt.logs);
+
+        const docData = {
+          ...formData,
+          creatorAddress: address,
+          transactionHash: txHash,
+          tokenId: tokenId.toString(),
+          validationStatus: "0/4",
+          createdAt: new Date().toISOString()
+        };
+
+        const newDocId = await documentsService.addDocument(docData);
+        console.log('Document sauvegardé avec succès, ID:', newDocId);
+        setDocumentId(newDocId);
+
+        resetForm();
+
+      } catch (err) {
+        console.error('Receipt processing error:', err);
+        setError('Erreur lors du traitement: ' + (err.message || 'Erreur inconnue'));
+      } finally {
+        setProcessingReceipt(false);
+      }
+    };
+
+    processTransactionReceipt();
+  }, [receipt, isTxSuccess, processingReceipt, address, formData, txHash]);
+
+  // =============== SUBMIT HANDLER ===============
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      console.log('=== Début de la Soumission du Document ===');
+      console.log('=== Starting Document Submission ===');
       setError('');
       setTxHash(null);
       setShowNetworkHelp(false);
 
-      // Validation
       if (!formData.ipfsCid || !formData.title || !formData.authors || !formData.programme) {
         throw new Error('Veuillez remplir tous les champs requis');
       }
 
-      // Formatage des références
       const references = formData.references
         ? formData.references.split(',').map(ref => parseInt(ref.trim()))
         : [];
 
-      // Préparation de l'appel à proposeContent
-      console.log('Arguments pour proposeContent:', {
+      console.log('Submitting with args:', {
         tokenURI: formData.ipfsCid,
         references: references
       });
 
-      const tx = await writeContractAsync({
+      const hash = await writeContractAsync({
         ...contractConfig,
         functionName: 'proposeContent',
         args: [formData.ipfsCid, references],
       });
 
-      setTxHash(tx);
-      console.log('Transaction soumise:', tx);
-
-      // Création du document dans Firestore
-      const docData = {
-        ipfsCid: formData.ipfsCid,
-        title: formData.title,
-        authors: formData.authors,
-        description: formData.description,
-        programme: formData.programme,
-        categories: formData.categories,
-        references: references,
-        creatorAddress: address,
-        transactionHash: tx,
-        validationStatus: "0/4",
-        createdAt: new Date().toISOString()
-      };
-
-      const newDocId = await documentsService.addDocument(docData);
-      setDocumentId(newDocId);
+      console.log('Transaction hash:', hash);
+      setTxHash(hash);
 
     } catch (err) {
-      console.error('❌ Erreur de soumission:', err);
+      console.error('Submission error:', err);
       handleError(err);
     }
   };
 
-  // =============== UTILITY FUNCTIONS ===============
+  // =============== ERROR HANDLING ===============
   const handleError = async (err) => {
+    console.error('Full error:', err);
+
     if (documentId) {
       try {
         await documentsService.updateDocumentStatus(documentId, 'FAILED');
-        console.log('Document marqué comme échoué dans Firestore');
+        console.log('Document marked as failed in Firestore');
       } catch (firebaseErr) {
-        console.error('Erreur lors de la mise à jour du statut:', firebaseErr);
+        console.error('Error updating document status:', firebaseErr);
       }
     }
 
@@ -145,6 +203,7 @@ export default function SubmitContribution() {
     }
   };
 
+  // =============== UTILITY FUNCTIONS ===============
   const resetForm = () => {
     setFormData({
       ipfsCid: '',
@@ -170,7 +229,7 @@ export default function SubmitContribution() {
     );
   }
 
-  // =============== COMPONENT RENDER ===============
+  // =============== MAIN RENDER ===============
   return (
     <div className="bg-white rounded-lg shadow-md max-w-3xl mx-auto">
       <div className="p-6">
