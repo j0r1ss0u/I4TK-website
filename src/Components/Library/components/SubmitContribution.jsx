@@ -85,10 +85,10 @@ export default function SubmitContribution() {
         ? formData.references.split(',').map(ref => parseInt(ref.trim()))
         : [];
 
-      // Soumission au smart contract avec proposeContent
-      console.log('Soumission à proposeContent avec:', {
+      // Préparation de l'appel à proposeContent
+      console.log('Arguments pour proposeContent:', {
         tokenURI: formData.ipfsCid,
-        references
+        references: references
       });
 
       const tx = await writeContractAsync({
@@ -108,16 +108,15 @@ export default function SubmitContribution() {
         description: formData.description,
         programme: formData.programme,
         categories: formData.categories,
-        references: formData.references,
+        references: references,
         creatorAddress: address,
         transactionHash: tx,
-        status: 'PENDING',
+        validationStatus: "0/4",
         createdAt: new Date().toISOString()
       };
 
       const newDocId = await documentsService.addDocument(docData);
       setDocumentId(newDocId);
-      console.log('Document créé avec ID:', newDocId);
 
     } catch (err) {
       console.error('❌ Erreur de soumission:', err);

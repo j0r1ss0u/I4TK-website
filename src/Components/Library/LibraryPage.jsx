@@ -21,8 +21,8 @@ const TABS = {
   NETWORK_PUBLICATIONS: 'network-publications',
   SUBMIT_CONTRIBUTION: 'submit-contribution',
   PEER_REVIEW: 'peer-review',
+  LIBRARIAN_SPACE: 'librarian-space',
   I4T_AND_I: 'i4t-and-i',
-  LIBRARIAN_SPACE: 'librarian-space'
 };
 
 const LibraryPage = () => {
@@ -108,22 +108,17 @@ const LibraryPage = () => {
       [TABS.NETWORK_PUBLICATIONS]: 'Peer reviews'
     };
 
-    if (isWebMember) {
-      tabs[TABS.I4T_AND_I] = 'IP monitoring';
-    }
-
     if (web3Roles.isContributor) {
       tabs[TABS.SUBMIT_CONTRIBUTION] = 'Submit Contribution';
-    }
-
-    if (web3Roles.isValidator) {
-      tabs[TABS.PEER_REVIEW] = 'Peer Review';
     }
 
     if (web3Roles.isAdmin) {
       tabs[TABS.LIBRARIAN_SPACE] = 'Librarian Space';
     }
 
+    if (isWebMember) {
+      tabs[TABS.I4T_AND_I] = 'IP monitoring';
+    }
     return tabs;
   };
 
