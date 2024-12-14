@@ -71,39 +71,34 @@ export default function SubmitContribution() {
   const extractTokenIdFromEvent = (logs) => {
     console.log('=== Starting TokenID Extraction ===');
 
-    // Log tous les événements pour debug
-    console.log('All logs:', logs.map(log => ({
-      address: log.address,
-      topics: log.topics,
-      name: log.name || 'unknown',
-      args: log.args
-    })));
+    // Chercher l'événement tokenCreation du contrat ERC1155
+    const tokenCreationEvent = logs.find(log => 
+      log.address.toLowerCase() === '0x06fc114e58b8be5d03b5b7b03ab7f0d3c9605288'.toLowerCase() && 
+      log.data.includes('tokenId')
+    );
 
-    // Trouver l'événement Propose Content
-    const proposeEvent = logs.find(log => {
-      const isCorrectContract = log.address.toLowerCase() === contractConfig.address.toLowerCase();
-      const isProposeContent = log.name === 'contentProposed' || log.topics[0] === contentProposedTopic;
+    if (!tokenCreationEvent) {
+      // Si on ne trouve pas l'événement tokenCreation, cherchons dans data
+      const transferEvent = logs.find(log => 
+        log.address.toLowerCase() === '0x06fc114e58b8be5d03b5b7b03ab7f0d3c9605288'.toLowerCase() &&
+        log.data
+      );
 
-      console.log('Checking log:', {
-        address: log.address,
-        isCorrectContract,
-        name: log.name,
-        isProposeContent,
-        topics: log.topics
-      });
+      if (transferEvent) {
+        // Le tokenId est dans la data, au format décimal
+        const tokenId = parseInt(transferEvent.data.slice(0, 66), 16);
+        console.log('TokenId from transfer event:', tokenId);
+        return tokenId;
+      }
 
-      return isCorrectContract && isProposeContent;
-    });
-
-    if (!proposeEvent) {
-      throw new Error('Événement Propose Content non trouvé');
+      console.error('Available logs:', logs);
+      throw new Error('Événement tokenCreation non trouvé');
     }
 
-    // Extraire le tokenId
-    const tokenIdHex = proposeEvent.topics[1];
-    const tokenId = parseInt(tokenIdHex.slice(-2), 16);
+    // Extraire le tokenId directement de la data
+    const tokenId = parseInt(tokenCreationEvent.data.slice(0, 66), 16);
+    console.log('TokenId extracted:', tokenId);
 
-    console.log('Found token ID:', tokenId);
     return tokenId;
   };
   // =============== RECEIPT PROCESSING ===============
