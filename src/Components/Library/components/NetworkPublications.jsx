@@ -1,17 +1,17 @@
-// =============== IMPORTS ===============
 import React, { useState, useEffect } from 'react';
-import { useAccount, useContractWrite, useWaitForTransactionReceipt } from 'wagmi';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
 import '@react-pdf-viewer/core/lib/styles/index.css';
-import { contractConfig } from '../../../config/wagmiConfig';  // Plus besoin de publicClient
 import { documentsService } from '../../../services/documentsService';
 import { AlertCircle, CheckCircle2, Clock, ExternalLink, ZoomIn, Download } from 'lucide-react';
+import DocumentValidator from "./DocumentValidator";
+
 
 // =============== CONSTANTS ===============
 const ValidationStatus = {
-  PENDING: 'PENDING',
-  IN_PROGRESS: '0/4',
-  VALIDATED: 'VALIDATED',
+  PENDING: '0/4',
+  VALIDATION_1: '1/4',
+  VALIDATION_2: '2/4',
+  VALIDATION_3: '3/4',
   PUBLISHED: 'PUBLISHED',
   FAILED: 'FAILED'
 };
@@ -19,12 +19,11 @@ const ValidationStatus = {
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
 
 // =============== DOCUMENT VIEWER COMPONENT ===============
-const DocumentViewer = ({ documentCid, title }) => {
+const DocumentViewer = ({ documentCid }) => {
   const [viewerError, setViewerError] = useState(false);
   const documentUrl = `${IPFS_GATEWAY}${documentCid}`;
 
   useEffect(() => {
-    // Vérifier si le document est accessible
     const checkDocument = async () => {
       try {
         const response = await fetch(documentUrl, { method: 'HEAD' });
@@ -77,18 +76,10 @@ const DocumentViewer = ({ documentCid, title }) => {
 };
 
 // =============== MAIN COMPONENT ===============
-const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebAdmin, address }) => {
-  // =============== STATE MANAGEMENT ===============
+const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebAdmin, address, networkContract }) => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [validationInProgress, setValidationInProgress] = useState({});
   const [error, setError] = useState(null);
-
-  // =============== CONTRACT INTERACTIONS ===============
-  const { writeAsync: validateContent } = useContractWrite({
-    ...contractConfig,
-    functionName: 'valideContent',
-  });
 
   // =============== DATA LOADING ===============
   useEffect(() => {
@@ -113,55 +104,8 @@ const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebA
     loadDocuments();
   }, [isWebMember, isWebAdmin]);
 
-  // =============== VALIDATION HANDLER ===============
-  const handleValidate = async (docId) => {
-    try {
-      const doc = documents.find(d => d.id === docId);
-      if (!doc) {
-        throw new Error('Document introuvable');
-      }
-      const tokenId = doc.tokenId;
-      if (!tokenId) {
-        throw new Error('TokenId manquant pour ce document');
-      }
-
-      setValidationInProgress(prev => ({ ...prev, [docId]: true }));
-      setError(null);
-
-      const tokenIdBigInt = BigInt(tokenId);
-      console.log("Validation du tokenId:", tokenIdBigInt.toString());
-
-      const tx = await validateContent({
-        args: [tokenIdBigInt],
-      });
-
-      await documentsService.updateDocumentStatus(docId, ValidationStatus.IN_PROGRESS);
-      const receipt = await tx.wait();
-
-      if (receipt.status === 1) {
-        setDocuments(prev => prev.map(d => 
-          d.id === docId ? { ...d, validationStatus: ValidationStatus.IN_PROGRESS } : d
-        ));
-      }
-    } catch (err) {
-      console.error("Erreur de validation:", err);
-      setError(err.message);
-      await documentsService.updateDocumentStatus(docId, ValidationStatus.FAILED);
-    } finally {
-      setValidationInProgress(prev => ({ ...prev, [docId]: false }));
-    }
-  };
-
   // =============== UTILITY FUNCTIONS ===============
   const canValidate = (doc) => {
-    console.log("Vérification des droits de validation:", {
-      isWeb3Validator,
-      isWeb3Admin,
-      docCreator: doc?.creatorAddress,
-      currentAddress: address,
-      validators: doc?.validators
-    });
-
     if (!doc) return false;
     if (!isWeb3Validator && !isWeb3Admin) return false;
     if (doc.creatorAddress === address) return false;
@@ -194,6 +138,7 @@ const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebA
     }
     return new Date(timestamp).toLocaleString('fr-FR');
   };
+
   // =============== UI HELPERS ===============
   const getStatusBadge = (status) => {
     const badges = {
@@ -228,6 +173,7 @@ const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebA
       </span>
     );
   };
+
   // =============== RENDER STATES ===============
   if (loading) {
     return (
@@ -285,30 +231,10 @@ const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebA
                   <span>Créé le: {formatDate(doc.createdAt)}</span>
                 </div>
                 {canValidate(doc) && (
-                  <div className="mt-4 flex justify-end gap-4">
-                    <button
-                      onClick={() => handleValidate(doc.id)}
-                      disabled={validationInProgress[doc.id]}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 
-                                disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {validationInProgress[doc.id] ? 'Validation...' : 'Valider'}
-                    </button>
-                  </div>
-                )}
-                {doc.validationStatus === ValidationStatus.IN_PROGRESS && (
-                  <div className="mt-4">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">Progression</span>
-                      <span className="text-sm font-medium">{doc.validationStatus}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${(parseInt(doc.validationStatus) / 4) * 100}%` }}
-                      />
-                    </div>
-                  </div>
+                  <DocumentValidator
+                    document={doc}
+                    documentsService={documentsService}
+                  />
                 )}
               </div>
             </div>
