@@ -10,19 +10,25 @@ const MissionCard = ({ title, description, icon: Icon, color }) => (
 );
 
 const TimelineEvent = ({ date, title, location, isDeliverable = false }) => (
-  <div className="flex items-center min-h-[60px]">
+  <div className="flex items-center min-h-[80px] group relative">
     {!isDeliverable ? (
       <>
         <div className="w-[45%] text-right pr-8">
-          <div>
-            <p className="text-sm text-gray-500">{date}</p>
-            <p className="font-medium">{title}</p>
-            {location && <p className="text-sm text-gray-500">{location}</p>}
+          <div className="group-hover:transform group-hover:scale-105 transition-transform">
+            <p className="text-base font-medium text-orange-600">{date}</p>
+            <p className="font-semibold text-xl">{title}</p>
+            {location && <p className="text-base text-gray-600">{location}</p>}
           </div>
         </div>
         <div className="relative flex flex-col items-center w-[10%]">
-          <div className="h-full w-px bg-orange-200"></div>
-          <div className="absolute w-2 h-2 bg-orange-400 rounded-full"></div>
+          {/* Vertical Line */}
+          <div className="absolute top-0 bottom-0 w-1 bg-gradient-to-b from-orange-300 to-orange-500" 
+               style={{ transform: 'translateY(-50%)', height: 'calc(100% + 80px)' }}>
+          </div>
+          {/* Point */}
+          <div className="relative w-4 h-4 bg-orange-500 rounded-full border-4 border-orange-200 z-10 
+                        transition-all duration-200 group-hover:scale-150 group-hover:border-orange-100">
+          </div>
         </div>
         <div className="w-[45%]"></div>
       </>
@@ -30,14 +36,20 @@ const TimelineEvent = ({ date, title, location, isDeliverable = false }) => (
       <>
         <div className="w-[45%]"></div>
         <div className="relative flex flex-col items-center w-[10%]">
-          <div className="h-full w-px bg-orange-200"></div>
-          <div className="absolute w-2 h-2 bg-orange-400 rounded-full"></div>
+          {/* Vertical Line */}
+          <div className="absolute top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-300 to-emerald-500"
+               style={{ transform: 'translateY(-50%)', height: 'calc(100% + 80px)' }}>
+          </div>
+          {/* Point */}
+          <div className="relative w-4 h-4 bg-orange-500 rounded-full border-4 border-orange-200 z-10 
+                        transition-all duration-200 group-hover:scale-150 group-hover:border-orange-100">
+          </div>
         </div>
         <div className="w-[45%] pl-8">
-          <div>
-            <p className="text-sm text-gray-500">{date}</p>
-            <p className="font-medium">{title}</p>
-            {location && <p className="text-sm text-gray-500">{location}</p>}
+          <div className="group-hover:transform group-hover:scale-105 transition-transform">
+            <p className="text-base font-medium text-orange-600">{date}</p>
+            <p className="font-semibold text-xl">{title}</p>
+            {location && <p className="text-base text-gray-600">{location}</p>}
           </div>
         </div>
       </>

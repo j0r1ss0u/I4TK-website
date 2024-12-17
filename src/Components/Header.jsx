@@ -3,7 +3,7 @@ import { useAuth, UserProfile, LoginForm } from './AuthContext';
 import WalletConnect from './Library/WalletConnect';
 import { LogIn } from 'lucide-react';
 
-// Composant LoginButton
+// Composant LoginButton inchangé
 const LoginButton = () => {
   const [showLoginForm, setShowLoginForm] = useState(false);
   return (
@@ -32,10 +32,9 @@ const LoginButton = () => {
   );
 };
 
-// Composant Navigation
+// Composant Navigation inchangé
 const Navigation = ({ currentPage, setCurrentPage }) => {
   const { user } = useAuth();
-
   const navItems = [
     { id: "home", label: "Home", public: true },
     { id: "about", label: "About", public: true },
@@ -43,7 +42,6 @@ const Navigation = ({ currentPage, setCurrentPage }) => {
     { id: "library", label: "Library", public: true },
     { id: "forum", label: "Forum", requiresAuth: true }
   ];
-
   const visibleItems = navItems.filter(item => 
     item.public || (user && item.requiresAuth)
   );
@@ -79,18 +77,23 @@ const Navigation = ({ currentPage, setCurrentPage }) => {
   );
 };
 
-// Composant Header principal
+// Composant Header mis à jour avec logo cliquable
 const Header = ({ currentPage, setCurrentPage }) => {
   return (
     <header className="bg-white bg-opacity-90 border-b" role="banner">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-24">
           <div className="flex items-center">
-            <img
-              src="/assets/logos/I4TK logo.jpg"
-              alt="I4TK Logo"
-              className="h-24"
-            />
+            <button 
+              onClick={() => setCurrentPage("home")}
+              className="focus:outline-none hover:opacity-80 transition-opacity"
+            >
+              <img
+                src="/assets/logos/I4TK logo.jpg"
+                alt="I4TK Logo"
+                className="h-24"
+              />
+            </button>
           </div>
           <Navigation currentPage={currentPage} setCurrentPage={setCurrentPage} />
         </div>

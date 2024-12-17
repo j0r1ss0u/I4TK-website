@@ -66,7 +66,7 @@ function AppContent() {
       </div>
       <div className="relative z-10">
         <main>
-          {currentPage === "home" && <HomePage currentLang={currentLang} />}
+          {currentPage === "home" && <HomePage currentLang={currentLang} setCurrentPage={setCurrentPage} />}
           {currentPage === "about" && <AboutPage currentLang={currentLang} />}
           {currentPage === "members" && <MembersPage.MembersPageWrapper currentLang={currentLang} />}
           {currentPage === "library" && <LibraryPage currentLang={currentLang} />}
