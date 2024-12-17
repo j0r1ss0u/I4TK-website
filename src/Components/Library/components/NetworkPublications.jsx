@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Worker, Viewer } from '@react-pdf-viewer/core';
-import '@react-pdf-viewer/core/lib/styles/index.css';
 import { documentsService } from '../../../services/documentsService';
 import { AlertCircle, CheckCircle2, Clock, ExternalLink, ZoomIn, Download } from 'lucide-react';
 import DocumentValidator from "./DocumentValidator";
+import DocumentViewer from './DocumentViewer';
 
 
 // =============== CONSTANTS ===============
@@ -14,65 +13,6 @@ const ValidationStatus = {
   VALIDATION_3: '3/4',
   PUBLISHED: 'PUBLISHED',
   FAILED: 'FAILED'
-};
-
-const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
-
-// =============== DOCUMENT VIEWER COMPONENT ===============
-const DocumentViewer = ({ documentCid }) => {
-  const [viewerError, setViewerError] = useState(false);
-  const documentUrl = `${IPFS_GATEWAY}${documentCid}`;
-
-  useEffect(() => {
-    const checkDocument = async () => {
-      try {
-        const response = await fetch(documentUrl, { method: 'HEAD' });
-        if (!response.ok) setViewerError(true);
-      } catch (error) {
-        console.error('Erreur lors de la vérification du document:', error);
-        setViewerError(true);
-      }
-    };
-    checkDocument();
-  }, [documentUrl]);
-
-  if (viewerError) {
-    return (
-      <div className="border rounded-lg p-4 bg-gray-50">
-        <h4 className="font-semibold text-gray-900 mb-2">Options d'accès au document:</h4>
-        <ul className="list-disc pl-5 space-y-2">
-          <li>
-            <a href={`ipfs://${documentCid}`} className="text-blue-600 hover:underline inline-flex items-center">
-              Ouvrir avec IPFS Desktop
-              <ExternalLink className="ml-1 w-4 h-4" />
-            </a>
-          </li>
-          <li>
-            <a href={documentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center">
-              Ouvrir via la gateway IPFS
-              <ExternalLink className="ml-1 w-4 h-4" />
-            </a>
-          </li>
-        </ul>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-[200px] relative">
-      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
-        <Viewer fileUrl={documentUrl} onError={() => setViewerError(true)} />
-      </Worker>
-      <div className="absolute bottom-0 right-0 p-2 bg-white rounded-tl-lg shadow flex gap-2">
-        <a href={documentUrl} target="_blank" rel="noopener noreferrer" className="p-1 hover:bg-gray-100 rounded" title="Ouvrir">
-          <ZoomIn className="w-4 h-4" />
-        </a>
-        <a href={documentUrl} download className="p-1 hover:bg-gray-100 rounded" title="Télécharger">
-          <Download className="w-4 h-4" />
-        </a>
-      </div>
-    </div>
-  );
 };
 
 // =============== MAIN COMPONENT ===============
