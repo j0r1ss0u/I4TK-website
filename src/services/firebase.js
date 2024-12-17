@@ -41,8 +41,8 @@ try {
 // =============== ROLES MANAGEMENT SERVICE ===============
 export const roleManagementService = {
   async addRole(roleData) {
-    if (!roleData || !roleData.address || !roleData.role || !roleData.memberId) {
-      throw new Error('Invalid role data: address, role and memberId are required');
+    if (!roleData || !roleData.address || !roleData.role || !roleData.memberId || !roleData.action) {
+      throw new Error('Invalid role data: address, role, memberId and action are required');
     }
 
     try {
@@ -52,12 +52,12 @@ export const roleManagementService = {
       const newRole = {
         address: roleData.address.toLowerCase(),
         role: roleData.role,
+        action: roleData.action, // Nouveau champ
         memberId: roleData.memberId,
         memberName: roleData.memberName,
         category: roleData.category,
         country: roleData.country,
         transactionHash: roleData.transactionHash || null,
-        status: roleData.status || 'PENDING',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };

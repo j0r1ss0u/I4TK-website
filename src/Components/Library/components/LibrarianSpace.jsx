@@ -5,6 +5,7 @@ import { contractConfig } from "../../../config/wagmiConfig";
 import { roleManagementService } from "../../../services/firebase";
 import { web3RoleService } from "../../../services/web3";
 import { useMembers } from "../../Members/MembersContext";
+import RolesTable from './RolesTable';
 
 // =============== CONSTANTS ===============
 const WEB3_ROLES = [
@@ -117,26 +118,8 @@ export default function LibrarianSpace() {
       const existingRoles = await roleManagementService.getRolesByAddress(formData.address);
       console.log('Existing roles:', existingRoles);
 
-      const pendingRole = existingRoles.find(r => 
-        r.status === 'PENDING' && 
-        r.role === formData.role
-      );
-      console.log('Found pending role:', pendingRole);
-
-      if (pendingRole) {
-        await roleManagementService.updateRoleStatus(
-          pendingRole.id,
-          'COMPLETED',
-          receipt.transactionHash
-        );
-        console.log('Role status updated to COMPLETED');
-
-        await loadRoles();
-        resetForm();
-      } else {
-        console.warn('No pending role found to update');
-        setError('No pending role found to update');
-      }
+      await loadRoles();
+      resetForm();
     } catch (error) {
       console.error('Error in handleTransactionSuccess:', error);
       setError('Failed to update role status');
@@ -191,28 +174,27 @@ export default function LibrarianSpace() {
       const tx = await writeContractAsync({
         ...contractConfig,
         functionName,
-        args: [formData.address, profile],
+        args: action === 'register' ? [formData.address, profile] : [formData.address],
       });
 
       console.log('Transaction submitted:', tx);
       setTxHash(tx);
 
-      if (action === 'register') {
-        const roleData = {
-          address: formData.address,
-          role: formData.role,
-          status: 'PENDING',
-          transactionHash: tx,
-          memberId: formData.memberId,
-          memberName: formData.memberName,
-          category: formData.category,
-          country: formData.country,
-          createdAt: new Date().toISOString()
-        };
+      // Enregistrement dans Firestore avec le nouveau champ "action"
+      const roleData = {
+        address: formData.address,
+        role: formData.role,
+        action: action, // 'register' ou 'revoke'
+        transactionHash: tx,
+        memberId: formData.memberId,
+        memberName: formData.memberName,
+        category: formData.category,
+        country: formData.country,
+        createdAt: new Date().toISOString()
+      };
 
-        await roleManagementService.addRole(roleData);
-        console.log('Role added to Firestore:', roleData);
-      }
+      await roleManagementService.addRole(roleData);
+      console.log('Role action recorded in Firestore:', roleData);
 
     } catch (error) {
       console.error('Transaction error:', error);
@@ -346,67 +328,13 @@ export default function LibrarianSpace() {
         </form>
 
         {/* Roles Registry */}
-        {rolesRegistry.length > 0 && (
-          <div className="mt-8 w-full">
-            <h3 className="text-lg font-bold mb-4">Registered Roles</h3>
-            <div className="w-full">
-              <table className="w-full table-auto divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Member Organisation
-                    </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Wallet Address
-                    </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Transaction
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {rolesRegistry
-                    .sort((a, b) => b.createdAt?.toDate?.() - a.createdAt?.toDate?.())
-                    .map((role) => (
-                      <tr key={role.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 text-sm min-w-[200px]">
-                          {role.memberName}
-                        </td>
-                        <td className="px-4 py-2 text-sm whitespace-nowrap font-mono">
-                          {role.address.slice(0, 6)}...{role.address.slice(-4)}
-                        </td>
-                        <td className="px-4 py-2 text-sm whitespace-nowrap">
-                          {role.role}
-                        </td>
-                        <td className="px-4 py-2 text-sm whitespace-nowrap text-gray-500">
-                          {formatDate(role.createdAt)}
-                        </td>
-                        <td className="px-4 py-2 text-sm whitespace-nowrap">
-                          {role.transactionHash && (
-                            <a
-                              href={`https://sepolia.etherscan.io/tx/${role.transactionHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 hover:underline font-mono"
-                            >
-                              {`${role.transactionHash.slice(0, 6)}...${role.transactionHash.slice(-4)}`}
-                            </a>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+                {rolesRegistry.length > 0 && (
+                  <RolesTable 
+                    rolesRegistry={rolesRegistry} 
+                    formatDate={formatDate}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+          );
+        }
