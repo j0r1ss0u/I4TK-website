@@ -122,8 +122,8 @@ export const LoginForm = () => {
       </form>
       <div className="mt-6 text-sm text-gray-600 space-y-1">
         <p className="text-center font-semibold">Comptes de démonstration :</p>
-        <p className="text-center">Admin : admin@i4tk.org / admin</p>
-        <p className="text-center">Membre : member@i4tk.org / member</p>
+        <p className="text-center">Admin </p>
+        <p className="text-center">Membre</p>
       </div>
     </div>
   );
