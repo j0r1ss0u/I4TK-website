@@ -49,7 +49,7 @@ function AppContent() {
         className="fixed top-24 left-0 right-0 h-[600px] z-0"
         style={{
           backgroundImage: "url('/assets/images/carte_reseau.png')",
-          backgroundSize: '80%',
+          backgroundSize: 'contain',
           backgroundPosition: 'top center',
           backgroundRepeat: 'no-repeat',
           opacity: 0.3,
