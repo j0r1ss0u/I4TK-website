@@ -68,7 +68,7 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSearch(query)}
-          placeholder={currentLang === 'en' ? 'Search publications...' : 'Rechercher des publications...'}
+          placeholder={currentLang === 'en' ? 'RAG feature is a work in progress...' : 'Fonctionnalité RAG en cours de développement...'}
           className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
