@@ -1,30 +1,37 @@
-// =============== IMPORTS ===============
 import { http, createConfig } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
 import { injected } from 'wagmi/connectors';
 import { createPublicClient, createWalletClient, custom } from 'viem';
 
-// =============== CHAIN CONFIGURATION ===============
+// Configuration des chaînes
 export const chains = [sepolia];
 
-// =============== PUBLIC CLIENT & WALLET CLIENT ===============
+// Configuration du client public
 export const publicClient = createPublicClient({
   chain: sepolia,
   transport: http()
 });
 
-export const walletClient = createWalletClient({
-  chain: sepolia,
-  transport: custom(window.ethereum)
-});
+// Configuration du wallet client
+export const walletClient = typeof window !== 'undefined' && window.ethereum
+  ? createWalletClient({
+      chain: sepolia,
+      transport: custom(window.ethereum)
+    })
+  : undefined;
 
-// =============== WAGMI CONFIGURATION ===============
+// Configuration Wagmi
 export const config = createConfig({
   chains: [sepolia],
   transports: {
     [sepolia.id]: http()
   },
-  connectors: [injected()]
+  connectors: [
+    injected({
+      shimDisconnect: true,
+      target: 'metaMask'
+    })
+  ]
 });
 
 // =============== CONTRACT CONFIGURATION ===============

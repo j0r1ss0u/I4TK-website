@@ -109,9 +109,9 @@ const HomePage = ({ currentLang, setCurrentPage }) => {
     <div 
       onClick={onClick}
       className={`backdrop-blur-sm bg-white/30 p-2 sm:p-3 md:p-4 lg:p-6 rounded-lg text-center 
-                 h-[100px] sm:h-[120px] md:h-[140px] lg:h-[160px] flex flex-col justify-center 
+                 min-h-[100px] sm:min-h-[120px] md:min-h-[140px] lg:min-h-[160px] flex flex-col justify-center 
                  cursor-pointer transition-transform duration-200 hover:scale-105 hover:shadow-lg
-                 flex-1`}
+                 w-full`}
     >
       <div className={`font-serif text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold ${textColor}
                       truncate`}>
@@ -127,7 +127,7 @@ const HomePage = ({ currentLang, setCurrentPage }) => {
     <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-4">
       {/* Section des statistiques */}
       <div className="mb-4">
-        <div className="flex justify-between gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4 lg:gap-6 w-full">
           {/* Carte des membres */}
           <StatCard
             onClick={() => handleNavigation('members')}

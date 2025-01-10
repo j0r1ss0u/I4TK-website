@@ -1,4 +1,11 @@
-
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  body {
+    @apply min-h-screen;
+  }
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
