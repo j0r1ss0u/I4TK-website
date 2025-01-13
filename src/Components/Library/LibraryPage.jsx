@@ -182,7 +182,7 @@ const LibraryPage = () => {
 
                 {!isWebMember && (
                   <div className="mt-4 text-sm text-gray-600">
-                    Login as a member to access work-in-progress documents and Web3 features
+                    Login as a member to access peer-review features
                   </div>
                 )}
 

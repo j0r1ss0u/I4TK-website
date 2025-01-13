@@ -3,7 +3,7 @@ import { useAuth, UserProfile, LoginForm } from './AuthContext';
 import WalletConnect from './Library/WalletConnect';
 import { LogIn } from 'lucide-react';
 
-// Composant LoginButton inchangé
+// Composant LoginButton
 const LoginButton = () => {
   const [showLoginForm, setShowLoginForm] = useState(false);
   return (
@@ -32,7 +32,7 @@ const LoginButton = () => {
   );
 };
 
-// Composant Navigation inchangé
+// Composant Navigation
 const Navigation = ({ currentPage, setCurrentPage }) => {
   const { user } = useAuth();
   const navItems = [
@@ -78,28 +78,38 @@ const Navigation = ({ currentPage, setCurrentPage }) => {
 };
 
 // Composant Header mis à jour avec logo cliquable
-const Header = ({ currentPage, setCurrentPage }) => {
+const Header = ({ currentPage, setCurrentPage, currentLang }) => {
   return (
     <header className="bg-white bg-opacity-90 border-b" role="banner">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-24">
-          <div className="flex items-center">
-            <button 
-              onClick={() => setCurrentPage("home")}
-              className="focus:outline-none hover:opacity-80 transition-opacity"
-            >
-              <img
-                src="/assets/logos/I4TK logo.jpg"
-                alt="I4TK Logo"
-                className="h-24"
-              />
-            </button>
+        <div className="flex flex-col items-center py-4">
+          <div className="flex justify-between items-center w-full">
+            <div className="flex items-center">
+              <button 
+                onClick={() => setCurrentPage("home")}
+                className="focus:outline-none hover:opacity-80 transition-opacity"
+              >
+                <img
+                  src="/assets/logos/I4TK logo.jpg"
+                  alt="I4TK Logo"
+                  className="h-24"
+                />
+              </button>
+            </div>
+            <Navigation currentPage={currentPage} setCurrentPage={setCurrentPage} />
           </div>
-          <Navigation currentPage={currentPage} setCurrentPage={setCurrentPage} />
+          <div className="text-center mt-4 max-w-3xl w-full">
+            <p className="font-serif text-2xl font-bold mb-6">
+              {currentLang === 'en' 
+                ? 'Our community aims to shape a global knowledge network to help regulate digital spaces.'
+                : 'Notre communauté aspire à créer un réseau global de connaissance pour assister la gouvernance des espaces numériques.'}
+            </p>
+          </div>
         </div>
       </div>
     </header>
   );
 };
+
 
 export default Header;

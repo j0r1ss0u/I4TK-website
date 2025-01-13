@@ -1,64 +1,84 @@
-import React, { useState } from 'react';
+// =============== IMPORTS ===============
+import React, { useState, useEffect } from 'react';
+import { documentsService } from '../../services/documentsService';
+import { embeddingService } from '../../services/embeddingService';
 
+// =============== COMPOSANT PRINCIPAL ===============
 const LibraryRAG = ({ currentLang = 'en' }) => {
+  // =============== ÉTATS ===============
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState(null);
+  const [testStatus, setTestStatus] = useState('');
 
-  // Simulation de résultats de recherche
-  const mockResults = [
-    {
-      id: '1',
-      title: 'Climate Change Adaptation Strategies',
-      excerpt: 'Comprehensive analysis of climate change adaptation strategies in developing countries',
-      relevance: 0.95,
-      author: 'Dr. Sarah Johnson',
-      date: '2024-01-15'
-    },
-    {
-      id: '2',
-      title: 'Sustainable Development Goals Progress Report',
-      excerpt: 'Assessment of global progress towards achieving the UN Sustainable Development Goals',
-      relevance: 0.88,
-      author: 'United Nations Research Team',
-      date: '2024-01-10'
-    },
-    {
-      id: '3',
-      title: 'Digital Innovation in Education',
-      excerpt: 'Impact of digital technologies on educational outcomes in rural areas',
-      relevance: 0.82,
-      author: 'Prof. Michael Chen',
-      date: '2024-01-05'
-    },
-    {
-      id: '4',
-      title: 'Global Health Initiatives',
-      excerpt: 'Evaluation of international health programs and their effectiveness',
-      relevance: 0.78,
-      author: 'Dr. Emily Martinez',
-      date: '2023-12-28'
+  // =============== INITIALISATION ET CONFIGURATION ===============
+  // Test de la configuration Firebase
+  useEffect(() => {
+    console.log("=== Test de la configuration Firebase ===");
+    console.log("Firebase config:", {
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    });
+  }, []);
+
+  // =============== GESTIONNAIRES D'ÉVÉNEMENTS ===============
+  const handleSearch = async (searchQuery) => {
+    if (!searchQuery.trim()) {
+      setResults([]); // Vider les résultats si la recherche est vide
+      return;
     }
-  ];
 
-  const handleSearch = (searchQuery) => {
     setIsSearching(true);
-    // Simuler un délai de recherche
-    setTimeout(() => {
-      // Filtrer les résultats mockés en fonction de la requête
-      const filteredResults = mockResults.filter(result =>
-        result.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        result.excerpt.toLowerCase().includes(searchQuery.toLowerCase())
+    setError(null);
+
+    try {
+      const searchResults = await documentsService.semanticSearch(
+        searchQuery,
+        currentLang
       );
-      setResults(filteredResults);
+
+      const formattedResults = searchResults.map(result => ({
+        id: result.id,
+        title: result.title,
+        excerpt: result.description || result.excerpt,
+        relevance: result.relevance,
+        author: result.author || result.creatorAddress,
+        date: result.createdAt 
+          ? new Date(result.createdAt.seconds * 1000).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0]
+      }));
+
+      setResults(formattedResults);
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(currentLang === 'en' 
+        ? 'Error performing search' 
+        : 'Erreur lors de la recherche'
+      );
+      setResults([]);
+    } finally {
       setIsSearching(false);
-    }, 1000);
+    }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch(query);
+    }
+  };
+
+  const handleViewDetails = (documentId) => {
+    console.log('View details for document:', documentId);
+  };
+
+  // =============== RENDU DU COMPOSANT ===============
   return (
     <div className="container mx-auto">
+      {/* Titre */}
       <h2 className="font-serif text-2xl font-bold mb-6">
-        {currentLang === 'en' ? 'Internet for Trust knowledge network answers you :' : 'Le réseau Internet for Trust vous répond'}
+        {currentLang === 'en' 
+          ? 'Search for title, author or content:' 
+          : 'Rechercher un titre, un auteur ou un contenu :'}
       </h2>
 
       {/* Barre de recherche */}
@@ -67,48 +87,78 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch(query)}
-          placeholder={currentLang === 'en' ? 'RAG feature is a work in progress...' : 'Fonctionnalité RAG en cours de développement...'}
+          onKeyPress={handleKeyPress}
+          placeholder={currentLang === 'en' 
+            ? 'Search in the knowledge base...' 
+            : 'Rechercher dans la base de connaissances...'}
           className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label={currentLang === 'en' ? 'Search' : 'Rechercher'}
         />
       </div>
 
-      {/* Résultats */}
+      {/* Zone de test */}
+      <div className="flex gap-4 mb-6">
+        
+
+        {/* Affichage du statut des tests */}
+        {testStatus && (
+          <div className="py-2 px-4 bg-gray-100 rounded">
+            {testStatus}
+          </div>
+        )}
+      </div>
+
+      {/* Message d'erreur */}
+      {error && (
+        <div className="text-red-600 mb-4 text-center">
+          {error}
+        </div>
+      )}
+
+      {/* Liste des résultats */}
       <div className="grid grid-cols-1 gap-6">
         {isSearching ? (
           <div className="flex justify-center p-4">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
-        ) : (
-          results.length > 0 ? (
-            results.map((result) => (
-              <article key={result.id} className="bg-white/50 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
-                <div className="p-4">
-                  <h3 className="text-xl font-semibold mb-2">
-                    {result.title}
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    {result.excerpt}
-                  </p>
-                  <div className="flex flex-wrap justify-between items-center">
-                    <span className="text-sm text-blue-600">
-                      {Math.round(result.relevance * 100)}% {currentLang === 'en' ? 'relevant' : 'pertinent'}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {result.author}
-                    </span>
-                    <button className="mt-2 sm:mt-0 text-blue-600 hover:text-blue-800 transition-colors">
-                      {currentLang === 'en' ? 'View details' : 'Voir détails'}
-                    </button>
-                  </div>
+        ) : results.length > 0 ? (
+          results.map((result) => (
+            <article 
+              key={result.id} 
+              className="bg-white/50 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+            >
+              <div className="p-4">
+                <h3 className="text-xl font-semibold mb-2">
+                  {result.title}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {result.excerpt}
+                </p>
+                <div className="flex flex-wrap justify-between items-center">
+                  <span className="text-sm text-blue-600">
+                    {Math.round(result.relevance*100)}%
+                    {currentLang === 'en' ? ' relevant' : ' pertinent'}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {result.author}
+                  </span>
+                  <button 
+                    onClick={() => handleViewDetails(result.id)}
+                    className="mt-2 sm:mt-0 text-blue-600 hover:text-blue-800 transition-colors"
+                    aria-label={currentLang === 'en' 
+                      ? 'View document details' 
+                      : 'Voir les détails du document'}
+                  >
+                    {currentLang === 'en' ? 'View details' : 'Voir détails'}
+                  </button>
                 </div>
-              </article>
-            ))
-          ) : query && (
-            <div className="text-center py-8 text-gray-500">
-              {currentLang === 'en' ? 'No results found' : 'Aucun résultat trouvé'}
-            </div>
-          )
+              </div>
+            </article>
+          ))
+        ) : query && (
+          <div className="text-center py-8 text-gray-500">
+            {currentLang === 'en' ? 'No results found' : 'Aucun résultat trouvé'}
+          </div>
         )}
       </div>
     </div>
