@@ -8,6 +8,8 @@ import { contractConfig } from '../../config/wagmiConfig';
 import NetworkPublications from './components/NetworkPublications';
 import SubmitContribution from './components/SubmitContribution';
 import LibrarianSpace from './components/LibrarianSpace';
+import { documentsService } from '../../services/documentsService';
+import { embeddingService } from '../../services/embeddingService';
 
 // =============== ROLE HASHES ===============
 const ROLE_HASHES = {
@@ -29,6 +31,9 @@ const LibraryPage = () => {
   // =============== STATES ===============
   const [activeTab, setActiveTab] = useState(TABS.NETWORK_PUBLICATIONS);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState(null);
   const [web3Roles, setWeb3Roles] = useState({
     isValidator: false,
     isAdmin: false,
@@ -122,6 +127,44 @@ const LibraryPage = () => {
     return tabs;
   };
 
+  // =============== SEARCH FUNCTIONS ===============
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    setError(null);
+
+    try {
+      const results = await documentsService.semanticSearch(searchTerm, 'en');
+      const formattedResults = results.map(result => ({
+        id: result.id,
+        title: result.title,
+        excerpt: result.description || result.excerpt,
+        relevance: result.relevance,
+        author: result.author || result.creatorAddress,
+        date: result.createdAt 
+          ? new Date(result.createdAt.seconds * 1000).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0]
+      }));
+      setSearchResults(formattedResults);
+    } catch (err) {
+      console.error('Search error:', err);
+      setError('Error performing search');
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   // =============== RENDER FUNCTIONS ===============
   const renderSubmitContributionTab = () => (
     <div className="max-w-3xl mx-auto">
@@ -175,8 +218,12 @@ const LibraryPage = () => {
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-transparent"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyPress={handleKeyPress}
                     />
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <Search 
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" 
+                      onClick={handleSearch}
+                    />
                   </div>
                 </div>
 
@@ -227,6 +274,9 @@ const LibraryPage = () => {
                           isWebAdmin={isWebAdmin}
                           address={address}
                           searchTerm={searchTerm}
+                          searchResults={searchResults}
+                          isSearching={isSearching}
+                          error={error}
                         />
                       );
                   }

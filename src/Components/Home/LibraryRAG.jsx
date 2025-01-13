@@ -67,15 +67,18 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
     }
   };
 
-  const handleViewDetails = (documentId) => {
-    console.log('View details for document:', documentId);
+  const handleViewDetails = (documentCid) => {
+    if (documentCid) {
+      window.open(`https://ipfs.io/ipfs/${documentCid.replace('ipfs://', '')}`, '_blank');
+    }
   };
+
 
   // =============== RENDU DU COMPOSANT ===============
   return (
     <div className="container mx-auto">
       {/* Titre */}
-      <h2 className="font-serif text-2xl font-bold mb-6">
+      <h2 className="font-serif text-xl font-bold mb-6">
         {currentLang === 'en' 
           ? 'Search for title, author or content:' 
           : 'Rechercher un titre, un auteur ou un contenu :'}

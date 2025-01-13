@@ -101,8 +101,8 @@ const Header = ({ currentPage, setCurrentPage, currentLang }) => {
           <div className="text-center mt-4 max-w-3xl w-full">
             <p className="font-serif text-2xl font-bold mb-6">
               {currentLang === 'en' 
-                ? 'Our community aims to shape a global knowledge network to help regulate digital spaces.'
-                : 'Notre communauté aspire à créer un réseau global de connaissance pour assister la gouvernance des espaces numériques.'}
+                ? 'Global knowledge network for an Internet for Trust'
+                : 'Réseau global de connaissance pour un Internet de confiance'}
             </p>
           </div>
         </div>

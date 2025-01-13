@@ -4,11 +4,16 @@ import { db } from './firebase';
 import { embeddingService } from './embeddingService';
 
 // =============== UTILITY FUNCTIONS ===============
+// Fonction pour calculer la similarité cosinus entre deux vecteurs
 const calculateSimilarity = (vecA, vecB) => {
+  // Calcul du produit scalaire
   const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  // Calcul des normes des vecteurs
   const normA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
   const normB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  // Calcul de la similarité cosinus
   const similarity = dotProduct / (normA * normB);
+  // Normalisation de la similarité entre 0 et 1
   const normalizedSimilarity = (similarity + 1) / 2;
 
   console.log({
@@ -22,21 +27,22 @@ const calculateSimilarity = (vecA, vecB) => {
   return normalizedSimilarity;
 };
 
-
 // =============== DOCUMENT SERVICE ===============
 export const documentsService = {
   // =============== ADD DOCUMENT ===============
+  // Ajoute un nouveau document à Firestore
   async addDocument(documentData) {
     try {
       console.log('=== Adding Document to Firestore ===');
       console.log('1. Document data received:', documentData);
 
+      // Vérification de la présence du tokenId
       if (!documentData.tokenId) {
         console.error('TokenId manquant dans les données du document');
         throw new Error('TokenId required');
       }
 
-      // Générer les embeddings pour le titre et la description
+      // Génération des embeddings pour le titre et la description
       let titleEmbedding = null;
       let contentEmbedding = null;
 
@@ -51,6 +57,7 @@ export const documentsService = {
         console.warn('Warning: Could not generate embeddings:', embeddingError);
       }
 
+      // Ajout du document à Firestore
       const documentsRef = collection(db, 'web3IP');
       console.log('2. Collection reference obtained');
 
@@ -72,6 +79,7 @@ export const documentsService = {
   },
 
   // =============== GET DOCUMENTS ===============
+  // Récupère tous les documents de la collection
   async getDocuments() {
     try {
       console.log('=== Fetching Documents ===');
@@ -90,6 +98,7 @@ export const documentsService = {
   },
 
   // =============== GET SINGLE DOCUMENT ===============
+  // Récupère un document spécifique par son ID
   async getDocument(documentId) {
     try {
       console.log('=== Fetching Single Document ===');
@@ -118,6 +127,7 @@ export const documentsService = {
   },
 
   // =============== UPDATE DOCUMENT ===============
+  // Met à jour un document existant
   async updateDocument(documentId, updateData) {
     try {
       console.log('=== Updating Document ===');
@@ -129,7 +139,7 @@ export const documentsService = {
 
       const docRef = doc(db, 'web3IP', documentId);
 
-      // Générer de nouveaux embeddings si le titre ou la description sont mis à jour
+      // Génération de nouveaux embeddings si le titre ou la description sont mis à jour
       let embeddings = {};
       if (updateData.title) {
         const titleEmbedding = await embeddingService.getEmbedding(updateData.title);
@@ -154,6 +164,7 @@ export const documentsService = {
   },
 
   // =============== DELETE DOCUMENT ===============
+  // Supprime un document de la collection
   async deleteDocument(documentId) {
     try {
       console.log('=== Deleting Document ===');
@@ -174,6 +185,7 @@ export const documentsService = {
   },
 
   // =============== UPDATE DOCUMENT STATUS ===============
+  // Met à jour le statut de validation d'un document
   async updateDocumentStatus(documentId, validationStatus) {
     try {
       console.log('=== Updating Document Status ===');
@@ -182,7 +194,7 @@ export const documentsService = {
         throw new Error('Document ID is required');
       }
 
-      // Ajout de la transformation du statut
+      // Transformation du statut si nécessaire
       let finalStatus = validationStatus;
       if (validationStatus === "4/4") {
         finalStatus = "PUBLISHED";
@@ -202,6 +214,7 @@ export const documentsService = {
   },
 
   // =============== GET DOCUMENTS BY ADDRESS ===============
+  // Récupère tous les documents créés par une adresse spécifique
   async getDocumentsByAddress(address) {
     try {
       console.log('=== Fetching Documents by Address ===');
@@ -220,6 +233,7 @@ export const documentsService = {
   },
 
   // =============== GET DOCUMENTS BY STATUS ===============
+  // Récupère tous les documents ayant un statut spécifique
   async getDocumentsByStatus(status) {
     try {
       console.log('=== Fetching Documents by Status ===');
@@ -237,6 +251,7 @@ export const documentsService = {
   },
 
   // =============== ADD COMMENT ===============
+  // Ajoute un commentaire à un document
   async addComment(documentId, comment) {
     try {
       console.log('=== Adding Comment ===');
@@ -261,6 +276,7 @@ export const documentsService = {
   },
 
   // =============== UPDATE DOCUMENT TOKEN ID ===============
+  // Met à jour le tokenId d'un document
   async updateDocumentTokenId(documentId, tokenId) {
     try {
       console.log('=== Updating Document TokenId ===');
@@ -284,7 +300,8 @@ export const documentsService = {
   },
 
   // =============== SEMANTIC SEARCH ===============
-  async semanticSearch(query, currentLang = 'en', limit = 10) {
+  // Effectue une recherche sémantique et lexicale sur les documents
+  async semanticSearch(query, currentLang = 'en', limit = 10, userRoles = {}) {
     try {
       console.log('=== Performing Hybrid Search ===');
       console.log('Query:', query);
@@ -301,6 +318,12 @@ export const documentsService = {
       const results = [];
       snapshot.forEach(doc => {
         const data = doc.data();
+
+        // Vérification des autorisations de l'utilisateur
+        if (!this.canUserViewDocument(data, userRoles)) {
+          return;
+        }
+
         let semanticScore = 0;
         let lexicalScore = 0;
 
@@ -324,22 +347,20 @@ export const documentsService = {
 
         lexicalScore = keywordMatches / keywords.length;
 
-        // Score combiné (70% sémantique, 30% lexical)
+        // Score combiné (50% sémantique, 50% lexical)
         const combinedScore = (semanticScore * 0.5) + (lexicalScore * 0.5);
 
-        // Seuil minimal de pertinence augmenté à 0.75
+        // Seuil minimal de pertinence
         if (combinedScore > 0.75) {
           results.push({
             id: doc.id,
             title: data.title,
-            description: data.description,
-            author: data.author,
+            description: data.description || data.excerpt, // Ajouter une fallback sur excerpt
+            author: data.author || data.authors || data.creatorAddress,
             createdAt: data.createdAt,
-            relevance: combinedScore,
-            semanticScore,
-            lexicalScore,
-            ...data
+            relevance: combinedScore
           });
+
         }
       });
 
@@ -358,6 +379,7 @@ export const documentsService = {
   },
 
   // =============== REINDEX EMBEDDINGS ===============
+  // Régénère les embeddings pour tous les documents
   async reindexEmbeddings() {
     try {
       console.log('=== Reindexing All Documents Embeddings ===');
@@ -393,7 +415,21 @@ export const documentsService = {
       console.error('❌ Error reindexing documents:', error);
       throw error;
     }
-  }
-};
+      },
 
-export default documentsService;
+      // =============== CHECK USER PERMISSIONS ===============
+      // Vérifie si l'utilisateur a le droit de voir un document
+      canUserViewDocument(document, userRoles) {
+        if (document.validationStatus === "PUBLISHED") {
+          return true;
+        }
+
+        if (userRoles.isWebMember || userRoles.isWebAdmin) {
+          return true;
+        }
+
+        return false;
+      }
+    };
+
+    export default documentsService;

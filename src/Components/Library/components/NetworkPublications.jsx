@@ -4,7 +4,6 @@ import { AlertCircle, CheckCircle2, Clock, ExternalLink, ZoomIn, Download } from
 import DocumentValidator from "./DocumentValidator";
 import DocumentViewer from './DocumentViewer';
 
-
 // =============== CONSTANTS ===============
 const ValidationStatus = {
   PENDING: '0/4',
@@ -16,7 +15,18 @@ const ValidationStatus = {
 };
 
 // =============== MAIN COMPONENT ===============
-const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebAdmin, address, networkContract }) => {
+const NetworkPublications = ({ 
+  isWeb3Validator, 
+  isWeb3Admin, 
+  isWebMember, 
+  isWebAdmin, 
+  address, 
+  networkContract,
+  searchTerm,
+  searchResults,
+  isSearching,
+  error: searchError
+}) => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -115,7 +125,7 @@ const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebA
   };
 
   // =============== RENDER STATES ===============
-  if (loading) {
+  if (loading || isSearching) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
@@ -123,20 +133,24 @@ const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebA
     );
   }
 
-  if (error) {
+  if (error || searchError) {
     return (
       <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
         <h4 className="font-semibold">Erreur</h4>
-        <p>{error}</p>
+        <p>{error || searchError}</p>
       </div>
     );
   }
 
-  if (!documents || documents.length === 0) {
+  const displayedDocuments = searchTerm ? searchResults : documents;
+
+  if (!displayedDocuments || displayedDocuments.length === 0) {
     return (
       <div className="text-center py-12">
         <h3 className="text-lg font-medium text-gray-900">Aucun document trouvé</h3>
-        <p className="mt-2 text-sm text-gray-500">Les documents apparaîtront ici une fois soumis.</p>
+        <p className="mt-2 text-sm text-gray-500">
+          {searchTerm ? "Aucun résultat pour cette recherche." : "Les documents apparaîtront ici une fois soumis."}
+        </p>
       </div>
     );
   }
@@ -144,38 +158,35 @@ const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebA
   // =============== MAIN RENDER ===============
   return (
     <div className="grid grid-cols-1 gap-6">
-      {documents.map((doc) => {
+      {displayedDocuments.map((doc) => {
         if (!doc) return null;
-        const documentCid = getDocumentCid(doc);
 
         return (
-          <div key={doc.id} className="bg-white shadow-sm rounded-lg p-6 hover:shadow-md transition-shadow">
-            <div className="flex">
-              <div className="w-48 mr-4">
-                {documentCid && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <DocumentViewer documentCid={documentCid} title={doc.title} />
-                  </div>
-                )}
-              </div>
+          <div key={doc.id} className="bg-white/50 backdrop-blur-sm rounded-lg p-6 hover:shadow-md transition-shadow">
+            <div className="flex items-start">
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-serif font-bold text-gray-900">{doc.title}</h3>
-                  {getStatusBadge(doc.validationStatus)}
+                  <span className="text-sm text-blue-600">
+                    {Math.round(doc.relevance * 100)}% pertinent
+                  </span>
                 </div>
                 <div className="prose prose-sm max-w-none mb-4">
-                  <p>{doc.description || 'Pas de description disponible'}</p>
+                  <p>{doc.description || doc.excerpt || 'Pas de description disponible'}</p>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                  <span>Auteurs: {doc.authors}</span>
-                  <span>Créé le: {formatDate(doc.createdAt)}</span>
+                <div className="flex items-center justify-between text-sm text-gray-500">
+                  <span>{doc.author || doc.authors || doc.creatorAddress || 'Auteur inconnu'}</span>
+                  {doc.ipfsCid && (
+                    <a
+                      href={`https://ipfs.io/ipfs/${doc.ipfsCid.replace('ipfs://', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      View details
+                    </a>
+                  )}
                 </div>
-                {canValidate(doc) && (
-                  <DocumentValidator
-                    document={doc}
-                    documentsService={documentsService}
-                  />
-                )}
               </div>
             </div>
           </div>
@@ -183,6 +194,7 @@ const NetworkPublications = ({ isWeb3Validator, isWeb3Admin, isWebMember, isWebA
       })}
     </div>
   );
+
 };
 
 export default NetworkPublications;
