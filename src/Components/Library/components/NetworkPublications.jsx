@@ -1,3 +1,4 @@
+// =============== IMPORTS ===============
 import React, { useState, useEffect } from 'react';
 import { documentsService } from '../../../services/documentsService';
 import { AlertCircle, CheckCircle2, Clock, ExternalLink, ZoomIn, Download } from 'lucide-react';
@@ -27,6 +28,10 @@ const NetworkPublications = ({
   isSearching,
   error: searchError
 }) => {
+  // Ajouter ici
+  console.log("ValidationStatus constant:", ValidationStatus);
+  
+  // =============== STATES ===============
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,12 +43,7 @@ const NetworkPublications = ({
         setLoading(true);
         const docs = await documentsService.getDocuments();
         console.log("Documents chargés:", docs);
-        const filteredDocs = docs.filter(doc => {
-          if (!doc) return false;
-          if (doc.validationStatus === ValidationStatus.PUBLISHED) return true;
-          return isWebMember || isWebAdmin;
-        });
-        setDocuments(filteredDocs);
+        setDocuments(docs.filter(Boolean));
       } catch (err) {
         console.error("Erreur chargement documents:", err);
         setError('Erreur lors du chargement des documents: ' + err.message);
@@ -54,9 +54,32 @@ const NetworkPublications = ({
     loadDocuments();
   }, [isWebMember, isWebAdmin]);
 
-  // =============== UTILITY FUNCTIONS ===============
+  // =============== AUTHORIZATION FUNCTIONS ===============
+  const canViewDocument = (doc) => {
+    const status = doc.validationStatus;
+    const isPublished = status === ValidationStatus.PUBLISHED;
+
+    console.log("Document validation check:", {
+      documentTitle: doc.title,
+      actualStatus: status,
+      PUBLISHED_STATUS: ValidationStatus.PUBLISHED,
+      statusesEqual: status === ValidationStatus.PUBLISHED,
+      isWebMember: isWebMember,
+      willBeVisible: isWebMember || isPublished
+    });
+
+    if (!doc) return false;
+    if (isWebMember) return true;
+    return isPublished;
+  };
+
+  const canViewStatus = () => {
+    return isWebMember;
+  };
+
   const canValidate = (doc) => {
     if (!doc) return false;
+    if (!isWebMember) return false;
     if (!isWeb3Validator && !isWeb3Admin) return false;
     if (doc.creatorAddress === address) return false;
     if (doc.validators?.includes(address)) return false;
@@ -64,6 +87,7 @@ const NetworkPublications = ({
     return true;
   };
 
+  // =============== UTILITY FUNCTIONS ===============
   const getDocumentCid = (doc) => {
     if (!doc || !doc.ipfsCid) return null;
     let cid = doc.ipfsCid;
@@ -72,6 +96,15 @@ const NetworkPublications = ({
     }
     cid = cid.trim();
     return cid.match(/^[a-zA-Z0-9]{46,62}$/) ? cid : null;
+  };
+
+  const handleViewDetails = (doc) => {
+    const cid = getDocumentCid(doc);
+    if (cid) {
+      window.open(`https://ipfs.io/ipfs/${cid}`, '_blank');
+    } else {
+      console.error('Invalid or missing IPFS CID:', doc);
+    }
   };
 
   const formatDate = (timestamp) => {
@@ -124,7 +157,7 @@ const NetworkPublications = ({
     );
   };
 
-  // =============== RENDER STATES ===============
+  // =============== DOCUMENTS DISPLAY LOGIC ===============
   if (loading || isSearching) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -142,7 +175,29 @@ const NetworkPublications = ({
     );
   }
 
-  const displayedDocuments = searchTerm ? searchResults : documents;
+  const displayedDocuments = searchTerm 
+  ? searchResults.map(result => {
+      const processedDoc = {
+        ...result,
+        validationStatus: result.validationStatus || result.status || ValidationStatus.PENDING,  // Ajout de result.status
+        excerpt: result.description || result.excerpt,
+        author: result.author || result.creatorAddress
+      };
+
+      console.log("Processed search result:", {
+        title: processedDoc.title,
+        originalStatus: result.validationStatus,
+        finalStatus: processedDoc.validationStatus
+      });
+
+      return processedDoc;
+    }).filter(canViewDocument)
+  : documents.filter(canViewDocument);
+
+  console.log("Documents finaux:", displayedDocuments.map(doc => ({
+    title: doc.title,
+    status: doc.validationStatus
+  })));
 
   if (!displayedDocuments || displayedDocuments.length === 0) {
     return (
@@ -160,33 +215,47 @@ const NetworkPublications = ({
     <div className="grid grid-cols-1 gap-6">
       {displayedDocuments.map((doc) => {
         if (!doc) return null;
+        const documentCid = getDocumentCid(doc);
 
         return (
           <div key={doc.id} className="bg-white/50 backdrop-blur-sm rounded-lg p-6 hover:shadow-md transition-shadow">
             <div className="flex items-start">
+              <div className="w-48 mr-4">
+                {documentCid && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <DocumentViewer documentCid={documentCid} title={doc.title} />
+                  </div>
+                )}
+              </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-serif font-bold text-gray-900">{doc.title}</h3>
-                  <span className="text-sm text-blue-600">
-                    {Math.round(doc.relevance * 100)}% pertinent
-                  </span>
+                  {canViewStatus() && getStatusBadge(doc.validationStatus)}
                 </div>
                 <div className="prose prose-sm max-w-none mb-4">
                   <p>{doc.description || doc.excerpt || 'Pas de description disponible'}</p>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-500">
+                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                   <span>{doc.author || doc.authors || doc.creatorAddress || 'Auteur inconnu'}</span>
-                  {doc.ipfsCid && (
-                    <a
-                      href={`https://ipfs.io/ipfs/${doc.ipfsCid.replace('ipfs://', '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                      View details
-                    </a>
-                  )}
+                  <span>Créé le: {formatDate(doc.createdAt)}</span>
+                  <button
+                    onClick={() => handleViewDetails(doc)}
+                    disabled={!doc.ipfsCid}
+                    className={`px-3 py-1 rounded transition-colors ${
+                      doc.ipfsCid
+                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    View details
+                  </button>
                 </div>
+                {canValidate(doc) && (
+                  <DocumentValidator
+                    document={doc}
+                    documentsService={documentsService}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -194,7 +263,6 @@ const NetworkPublications = ({
       })}
     </div>
   );
-
 };
 
 export default NetworkPublications;

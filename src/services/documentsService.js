@@ -355,10 +355,12 @@ export const documentsService = {
           results.push({
             id: doc.id,
             title: data.title,
-            description: data.description || data.excerpt, // Ajouter une fallback sur excerpt
+            description: data.description || data.excerpt,
             author: data.author || data.authors || data.creatorAddress,
             createdAt: data.createdAt,
-            relevance: combinedScore
+            relevance: combinedScore,
+            validationStatus: data.validationStatus,  // Ajout du status
+            ipfsCid: data.ipfsCid
           });
 
         }
@@ -412,7 +414,7 @@ export const documentsService = {
       console.log(`Reindexing completed. Updated ${updated} documents`);
       return updated;
     } catch (error) {
-      console.error('❌ Error reindexing documents:', error);
+      console.error('❌ Error in hybrid search:', error);
       throw error;
     }
       },

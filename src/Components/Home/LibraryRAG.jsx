@@ -24,7 +24,7 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
   // =============== GESTIONNAIRES D'ÉVÉNEMENTS ===============
   const handleSearch = async (searchQuery) => {
     if (!searchQuery.trim()) {
-      setResults([]); // Vider les résultats si la recherche est vide
+      setResults([]); 
       return;
     }
 
@@ -43,6 +43,7 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
         excerpt: result.description || result.excerpt,
         relevance: result.relevance,
         author: result.author || result.creatorAddress,
+        ipfsCid: result.ipfsCid, // Ajout de l'ipfsCid ici
         date: result.createdAt 
           ? new Date(result.createdAt.seconds * 1000).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0]
@@ -67,9 +68,16 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
     }
   };
 
-  const handleViewDetails = (documentCid) => {
-    if (documentCid) {
-      window.open(`https://ipfs.io/ipfs/${documentCid.replace('ipfs://', '')}`, '_blank');
+  const handleViewDetails = (result) => {
+    if (result?.ipfsCid) {
+      const cid = result.ipfsCid.replace('ipfs://', '').trim();
+      if (cid.match(/^[a-zA-Z0-9]{46,62}$/)) {
+        window.open(`https://ipfs.io/ipfs/${cid}`, '_blank');
+      } else {
+        console.error('Invalid IPFS CID format:', cid);
+      }
+    } else {
+      console.error('No IPFS CID found for document:', result);
     }
   };
 
@@ -146,11 +154,12 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
                     {result.author}
                   </span>
                   <button 
-                    onClick={() => handleViewDetails(result.id)}
+                    onClick={() => handleViewDetails(result)}
                     className="mt-2 sm:mt-0 text-blue-600 hover:text-blue-800 transition-colors"
                     aria-label={currentLang === 'en' 
                       ? 'View document details' 
                       : 'Voir les détails du document'}
+                    disabled={!result.ipfsCid}
                   >
                     {currentLang === 'en' ? 'View details' : 'Voir détails'}
                   </button>

@@ -138,27 +138,43 @@ const LibraryPage = () => {
     setError(null);
 
     try {
-      const results = await documentsService.semanticSearch(searchTerm, 'en');
+      // Ajout de logs pour déboguer
+      console.log("Début de la recherche pour:", searchTerm);
+
+      const results = await documentsService.semanticSearch(
+        searchTerm,
+        'en'
+      );
+      console.log("Résultats bruts reçus:", results);
+
+      if (!results) {
+        throw new Error("Aucun résultat reçu du service de recherche");
+      }
+
       const formattedResults = results.map(result => ({
         id: result.id,
         title: result.title,
         excerpt: result.description || result.excerpt,
         relevance: result.relevance,
         author: result.author || result.creatorAddress,
+        ipfsCid: result.ipfsCid,
+        validationStatus: result.validationStatus,
+        createdAt: result.createdAt,
         date: result.createdAt 
           ? new Date(result.createdAt.seconds * 1000).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0]
       }));
+
+      console.log("Résultats formatés:", formattedResults);
       setSearchResults(formattedResults);
     } catch (err) {
-      console.error('Search error:', err);
-      setError('Error performing search');
-      setSearchResults([]);
+      console.error('Erreur détaillée de la recherche:', err);
+      setError(err.message || 'Erreur lors de la recherche');
+      setResults([]);
     } finally {
       setIsSearching(false);
     }
   };
-
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       handleSearch();
