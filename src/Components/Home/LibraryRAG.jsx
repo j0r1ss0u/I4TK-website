@@ -1,7 +1,7 @@
 // =============== IMPORTS ===============
 import React, { useState, useEffect } from 'react';
 import { documentsService } from '../../services/documentsService';
-import { embeddingService } from '../../services/embeddingService';
+import DocumentViewer from '../Library/components/DocumentViewer';
 
 // =============== COMPOSANT PRINCIPAL ===============
 const LibraryRAG = ({ currentLang = 'en' }) => {
@@ -13,7 +13,6 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
   const [testStatus, setTestStatus] = useState('');
 
   // =============== INITIALISATION ET CONFIGURATION ===============
-  // Test de la configuration Firebase
   useEffect(() => {
     console.log("=== Test de la configuration Firebase ===");
     console.log("Firebase config:", {
@@ -43,7 +42,7 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
         excerpt: result.description || result.excerpt,
         relevance: result.relevance,
         author: result.author || result.creatorAddress,
-        ipfsCid: result.ipfsCid, // Ajout de l'ipfsCid ici
+        ipfsCid: result.ipfsCid,
         date: result.createdAt 
           ? new Date(result.createdAt.seconds * 1000).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0]
@@ -67,20 +66,6 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
       handleSearch(query);
     }
   };
-
-  const handleViewDetails = (result) => {
-    if (result?.ipfsCid) {
-      const cid = result.ipfsCid.replace('ipfs://', '').trim();
-      if (cid.match(/^[a-zA-Z0-9]{46,62}$/)) {
-        window.open(`https://ipfs.io/ipfs/${cid}`, '_blank');
-      } else {
-        console.error('Invalid IPFS CID format:', cid);
-      }
-    } else {
-      console.error('No IPFS CID found for document:', result);
-    }
-  };
-
 
   // =============== RENDU DU COMPOSANT ===============
   return (
@@ -107,18 +92,6 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
         />
       </div>
 
-      {/* Zone de test */}
-      <div className="flex gap-4 mb-6">
-        
-
-        {/* Affichage du statut des tests */}
-        {testStatus && (
-          <div className="py-2 px-4 bg-gray-100 rounded">
-            {testStatus}
-          </div>
-        )}
-      </div>
-
       {/* Message d'erreur */}
       {error && (
         <div className="text-red-600 mb-4 text-center">
@@ -139,30 +112,40 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
               className="bg-white/50 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
             >
               <div className="p-4">
-                <h3 className="text-xl font-semibold mb-2">
-                  {result.title}
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  {result.excerpt}
-                </p>
-                <div className="flex flex-wrap justify-between items-center">
-                  <span className="text-sm text-blue-600">
-                    {Math.round(result.relevance*100)}%
-                    {currentLang === 'en' ? ' relevant' : ' pertinent'}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {result.author}
-                  </span>
-                  <button 
-                    onClick={() => handleViewDetails(result)}
-                    className="mt-2 sm:mt-0 text-blue-600 hover:text-blue-800 transition-colors"
-                    aria-label={currentLang === 'en' 
-                      ? 'View document details' 
-                      : 'Voir les détails du document'}
-                    disabled={!result.ipfsCid}
-                  >
-                    {currentLang === 'en' ? 'View details' : 'Voir détails'}
-                  </button>
+                {/* En-tête du résultat */}
+                <div className="mb-4">
+                  <h3 className="text-xl font-semibold mb-2">
+                    {result.title}
+                  </h3>
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <span>{result.author}</span>
+                    <span>•</span>
+                    <span>{result.date}</span>
+                    <span>•</span>
+                    <span className="text-blue-600">
+                      {Math.round(result.relevance*100)}%
+                      {currentLang === 'en' ? ' relevant' : ' pertinent'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Contenu du résultat avec miniature à gauche */}
+                <div className="grid grid-cols-4 gap-6">
+                  {/* Prévisualisation du document (1/4 à gauche) */}
+                  <div className="col-span-1">
+                    {result.ipfsCid && (
+                      <DocumentViewer 
+                        documentCid={result.ipfsCid.replace('ipfs://', '')} 
+                      />
+                    )}
+                  </div>
+
+                  {/* Description (3/4 à droite) */}
+                  <div className="col-span-3">
+                    <p className="text-gray-600">
+                      {result.excerpt}
+                    </p>
+                  </div>
                 </div>
               </div>
             </article>
