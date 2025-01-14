@@ -28,9 +28,6 @@ const NetworkPublications = ({
   isSearching,
   error: searchError
 }) => {
-  // Ajouter ici
-  console.log("ValidationStatus constant:", ValidationStatus);
-  
   // =============== STATES ===============
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,33 +55,16 @@ const NetworkPublications = ({
   const canViewDocument = (doc) => {
     const status = doc.validationStatus;
     const isPublished = status === ValidationStatus.PUBLISHED;
-
-    console.log("Document validation check:", {
-      documentTitle: doc.title,
-      actualStatus: status,
-      PUBLISHED_STATUS: ValidationStatus.PUBLISHED,
-      statusesEqual: status === ValidationStatus.PUBLISHED,
-      isWebMember: isWebMember,
-      willBeVisible: isWebMember || isPublished
-    });
-
-    if (!doc) return false;
-    if (isWebMember) return true;
-    return isPublished;
+    return !doc ? false : isWebMember ? true : isPublished;
   };
 
-  const canViewStatus = () => {
-    return isWebMember;
-  };
+  const canViewStatus = () => isWebMember;
 
   const canValidate = (doc) => {
-    if (!doc) return false;
-    if (!isWebMember) return false;
-    if (!isWeb3Validator && !isWeb3Admin) return false;
+    if (!doc || !isWebMember || (!isWeb3Validator && !isWeb3Admin)) return false;
     if (doc.creatorAddress === address) return false;
     if (doc.validators?.includes(address)) return false;
-    if (doc.validationStatus === ValidationStatus.PUBLISHED) return false;
-    return true;
+    return doc.validationStatus !== ValidationStatus.PUBLISHED;
   };
 
   // =============== UTILITY FUNCTIONS ===============
@@ -130,11 +110,6 @@ const NetworkPublications = ({
         icon: Clock,
         text: "En attente"
       },
-      [ValidationStatus.IN_PROGRESS]: {
-        color: "bg-blue-100 text-blue-800",
-        icon: AlertCircle,
-        text: "En cours"
-      },
       [ValidationStatus.PUBLISHED]: {
         color: "bg-green-100 text-green-800",
         icon: CheckCircle2,
@@ -176,28 +151,13 @@ const NetworkPublications = ({
   }
 
   const displayedDocuments = searchTerm 
-  ? searchResults.map(result => {
-      const processedDoc = {
+    ? searchResults.map(result => ({
         ...result,
-        validationStatus: result.validationStatus || result.status || ValidationStatus.PENDING,  // Ajout de result.status
+        validationStatus: result.validationStatus || result.status || ValidationStatus.PENDING,
         excerpt: result.description || result.excerpt,
         author: result.author || result.creatorAddress
-      };
-
-      console.log("Processed search result:", {
-        title: processedDoc.title,
-        originalStatus: result.validationStatus,
-        finalStatus: processedDoc.validationStatus
-      });
-
-      return processedDoc;
-    }).filter(canViewDocument)
-  : documents.filter(canViewDocument);
-
-  console.log("Documents finaux:", displayedDocuments.map(doc => ({
-    title: doc.title,
-    status: doc.validationStatus
-  })));
+      })).filter(canViewDocument)
+    : documents.filter(canViewDocument);
 
   if (!displayedDocuments || displayedDocuments.length === 0) {
     return (
@@ -218,47 +178,65 @@ const NetworkPublications = ({
         const documentCid = getDocumentCid(doc);
 
         return (
-          <div key={doc.id} className="bg-white/50 backdrop-blur-sm rounded-lg p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-start">
-              <div className="w-48 mr-4">
+          <article key={doc.id} className="bg-white/50 backdrop-blur-sm rounded-lg p-6 hover:shadow-md transition-shadow">
+            {/* En-tête avec titre et statut */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xl font-serif font-bold text-gray-900">{doc.title}</h3>
+                {canViewStatus() && getStatusBadge(doc.validationStatus)}
+              </div>
+              <div className="flex items-center text-sm text-gray-500">
+                <span>{doc.author || doc.authors || doc.creatorAddress || 'Auteur inconnu'}</span>
+                <span className="mx-2">•</span>
+                <span>Créé le: {formatDate(doc.createdAt)}</span>
+              </div>
+            </div>
+
+            {/* Contenu principal avec grille responsive */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+              {/* Miniature (1/4 sur desktop, pleine largeur sur mobile) */}
+              <div className="w-full md:col-span-1">
                 {documentCid && (
                   <div className="border rounded-lg overflow-hidden">
-                    <DocumentViewer documentCid={documentCid} title={doc.title} />
+                    <DocumentViewer documentCid={documentCid} />
                   </div>
                 )}
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-serif font-bold text-gray-900">{doc.title}</h3>
-                  {canViewStatus() && getStatusBadge(doc.validationStatus)}
-                </div>
+
+              {/* Contenu (3/4 sur desktop, pleine largeur sur mobile) */}
+              <div className="md:col-span-3">
                 <div className="prose prose-sm max-w-none mb-4">
                   <p>{doc.description || doc.excerpt || 'Pas de description disponible'}</p>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                  <span>{doc.author || doc.authors || doc.creatorAddress || 'Auteur inconnu'}</span>
-                  <span>Créé le: {formatDate(doc.createdAt)}</span>
+
+                {/* Actions */}
+                <div className="flex items-center gap-4">
                   <button
                     onClick={() => handleViewDetails(doc)}
                     disabled={!doc.ipfsCid}
-                    className={`px-3 py-1 rounded transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
                       doc.ipfsCid
                         ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                         : 'bg-gray-100 text-gray-700'
                     }`}
                   >
-                    View details
+                    <ExternalLink className="w-4 h-4" />
+                    Voir le document
                   </button>
                 </div>
+
+                {/* Validation si autorisé */}
                 {canValidate(doc) && (
-                  <DocumentValidator
-                    document={doc}
-                    documentsService={documentsService}
-                  />
+                  <div className="mt-4">
+                    <DocumentValidator
+                      document={doc}
+                      documentsService={documentsService}
+                    />
+                  </div>
                 )}
               </div>
             </div>
-          </div>
+          </article>
         );
       })}
     </div>

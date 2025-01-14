@@ -20,52 +20,57 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
     });
   }, []);
 
-  // =============== GESTIONNAIRES D'ÉVÉNEMENTS ===============
-  const handleSearch = async (searchQuery) => {
-    if (!searchQuery.trim()) {
-      setResults([]); 
-      return;
-    }
+  // =============== RECHERCHE EN TEMPS RÉEL ===============
+  useEffect(() => {
+    // Fonction pour gérer la recherche
+    const handleSearch = async (searchQuery) => {
+      if (!searchQuery.trim()) {
+        setResults([]);
+        return;
+      }
 
-    setIsSearching(true);
-    setError(null);
+      setIsSearching(true);
+      setError(null);
 
-    try {
-      const searchResults = await documentsService.semanticSearch(
-        searchQuery,
-        currentLang
-      );
+      try {
+        const searchResults = await documentsService.semanticSearch(
+          searchQuery,
+          currentLang
+        );
 
-      const formattedResults = searchResults.map(result => ({
-        id: result.id,
-        title: result.title,
-        excerpt: result.description || result.excerpt,
-        relevance: result.relevance,
-        author: result.author || result.creatorAddress,
-        ipfsCid: result.ipfsCid,
-        date: result.createdAt 
-          ? new Date(result.createdAt.seconds * 1000).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0]
-      }));
+        const formattedResults = searchResults.map(result => ({
+          id: result.id,
+          title: result.title,
+          excerpt: result.description || result.excerpt,
+          relevance: result.relevance,
+          author: result.author || result.creatorAddress,
+          ipfsCid: result.ipfsCid,
+          date: result.createdAt 
+            ? new Date(result.createdAt.seconds * 1000).toISOString().split('T')[0]
+            : new Date().toISOString().split('T')[0]
+        }));
 
-      setResults(formattedResults);
-    } catch (err) {
-      console.error('Search error:', err);
-      setError(currentLang === 'en' 
-        ? 'Error performing search' 
-        : 'Erreur lors de la recherche'
-      );
-      setResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+        setResults(formattedResults);
+      } catch (err) {
+        console.error('Search error:', err);
+        setError(currentLang === 'en' 
+          ? 'Error performing search' 
+          : 'Erreur lors de la recherche'
+        );
+        setResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
+    // Timer pour le debounce
+    const timeoutId = setTimeout(() => {
       handleSearch(query);
-    }
-  };
+    }, 300); // Délai de 300ms
+
+    // Nettoyage
+    return () => clearTimeout(timeoutId);
+  }, [query, currentLang]); // Se déclenche quand la requête change
 
   // =============== RENDU DU COMPOSANT ===============
   return (
@@ -83,7 +88,6 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyPress={handleKeyPress}
           placeholder={currentLang === 'en' 
             ? 'Search in the knowledge base...' 
             : 'Rechercher dans la base de connaissances...'}
@@ -129,10 +133,10 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
                   </div>
                 </div>
 
-                {/* Contenu du résultat avec miniature à gauche */}
-                <div className="grid grid-cols-4 gap-6">
-                  {/* Prévisualisation du document (1/4 à gauche) */}
-                  <div className="col-span-1">
+                {/* Contenu du résultat - responsive */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+                  {/* Prévisualisation du document */}
+                  <div className="w-full md:col-span-1">
                     {result.ipfsCid && (
                       <DocumentViewer 
                         documentCid={result.ipfsCid.replace('ipfs://', '')} 
@@ -140,8 +144,8 @@ const LibraryRAG = ({ currentLang = 'en' }) => {
                     )}
                   </div>
 
-                  {/* Description (3/4 à droite) */}
-                  <div className="col-span-3">
+                  {/* Description */}
+                  <div className="md:col-span-3">
                     <p className="text-gray-600">
                       {result.excerpt}
                     </p>

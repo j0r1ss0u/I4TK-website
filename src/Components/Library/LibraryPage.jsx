@@ -9,7 +9,6 @@ import NetworkPublications from './components/NetworkPublications';
 import SubmitContribution from './components/SubmitContribution';
 import LibrarianSpace from './components/LibrarianSpace';
 import { documentsService } from '../../services/documentsService';
-import { embeddingService } from '../../services/embeddingService';
 
 // =============== ROLE HASHES ===============
 const ROLE_HASHES = {
@@ -85,6 +84,31 @@ const LibraryPage = () => {
   const isWebMember = user && (user.role === 'member' || user.role === 'admin');
   const isWebAdmin = user?.role === 'admin';
 
+  // =============== REAL-TIME SEARCH ===============
+  useEffect(() => {
+    const searchTimeout = setTimeout(async () => {
+      if (searchTerm.trim()) {
+        setIsSearching(true);
+        setError(null);
+
+        try {
+          const results = await documentsService.semanticSearch(searchTerm, 'en');
+          setSearchResults(results);
+        } catch (err) {
+          console.error('Erreur de recherche:', err);
+          setError(err.message || 'Erreur lors de la recherche');
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 300); // Délai de 300ms
+
+    return () => clearTimeout(searchTimeout);
+  }, [searchTerm]);
+
   // =============== EFFECTS ===============
   useEffect(() => {
     updateWeb3Roles(address);
@@ -127,73 +151,10 @@ const LibraryPage = () => {
     return tabs;
   };
 
-  // =============== SEARCH FUNCTIONS ===============
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    setError(null);
-
-    try {
-      // Ajout de logs pour déboguer
-      console.log("Début de la recherche pour:", searchTerm);
-
-      const results = await documentsService.semanticSearch(
-        searchTerm,
-        'en'
-      );
-      console.log("Résultats bruts reçus:", results);
-
-      if (!results) {
-        throw new Error("Aucun résultat reçu du service de recherche");
-      }
-
-      const formattedResults = results.map(result => ({
-        id: result.id,
-        title: result.title,
-        excerpt: result.description || result.excerpt,
-        relevance: result.relevance,
-        author: result.author || result.creatorAddress,
-        ipfsCid: result.ipfsCid,
-        validationStatus: result.validationStatus,
-        createdAt: result.createdAt,
-        date: result.createdAt 
-          ? new Date(result.createdAt.seconds * 1000).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0]
-      }));
-
-      console.log("Résultats formatés:", formattedResults);
-      setSearchResults(formattedResults);
-    } catch (err) {
-      console.error('Erreur détaillée de la recherche:', err);
-      setError(err.message || 'Erreur lors de la recherche');
-      setResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  };
-
   // =============== RENDER FUNCTIONS ===============
   const renderSubmitContributionTab = () => (
     <div className="max-w-3xl mx-auto">
       <SubmitContribution />
-    </div>
-  );
-
-  const renderPeerReviewTab = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-serif font-bold">Peer Review Dashboard</h2>
-      <div className="grid grid-cols-1 gap-6">
-        {/* Documents pending review */}
-      </div>
     </div>
   );
 
@@ -234,11 +195,9 @@ const LibraryPage = () => {
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-transparent"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyPress={handleKeyPress}
                     />
                     <Search 
                       className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" 
-                      onClick={handleSearch}
                     />
                   </div>
                 </div>
@@ -275,8 +234,6 @@ const LibraryPage = () => {
                   switch (activeTab) {
                     case TABS.SUBMIT_CONTRIBUTION:
                       return web3Roles.isContributor && renderSubmitContributionTab();
-                    case TABS.PEER_REVIEW:
-                      return web3Roles.isValidator && renderPeerReviewTab();
                     case TABS.I4T_AND_I:
                       return isWebMember && renderI4TAndITab();
                     case TABS.LIBRARIAN_SPACE:
