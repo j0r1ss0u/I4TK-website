@@ -161,7 +161,7 @@ const LibraryPage = () => {
 
   const renderI4TAndITab = () => (
     <div className="max-w-6xl mx-auto space-y-6">
-      <h2 className="text-2xl font-serif font-bold">I4T & I Dashboard</h2>
+      <h2 className="text-2xl font-serif font-bold">My contributions to the I4TK community</h2>
       <div className="mt-4">
         <I4TKDashboard />
       </div>

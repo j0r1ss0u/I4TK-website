@@ -1,5 +1,8 @@
 import { Base64 } from "js-base64";
 
+// =================================================================================
+// Base64 Data URL Parsing
+// =================================================================================
 export const parseBase64DataURL = (dataURL) => {
   if (!dataURL.startsWith("data:application/json;base64,")) {
     throw new Error("Invalid data URL format");
@@ -10,6 +13,9 @@ export const parseBase64DataURL = (dataURL) => {
   return jsonObject;
 };
 
+// =================================================================================
+// Date Formatting
+// =================================================================================
 export const timestampToDateString = (timestamp) => {
   const date = new Date(timestamp);
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

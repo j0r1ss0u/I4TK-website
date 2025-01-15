@@ -29,6 +29,7 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState("home");
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
+  
 
   useEffect(() => {
     const checkProvider = async () => {

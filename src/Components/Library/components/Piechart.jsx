@@ -1,14 +1,34 @@
-import React from 'react';
+// =================================================================================
+// 1. IMPORTS
+// =================================================================================
+import React from "react";
 
+// =================================================================================
+// 2. COMPONENT DEFINITION
+// =================================================================================
 const Piechart = ({ myBalance, totalSupply }) => {
-  const percentage = (myBalance / totalSupply) * 100;
+  // -----------------------------------------------------------------------------
+  // 2.1 Data Processing
+  // -----------------------------------------------------------------------------
+  const validMyBalance = Number(myBalance) || 0;
+  const validTotalSupply = Number(totalSupply) || 1;
+  const percentage = (validMyBalance / validTotalSupply) * 100;
+
+  // -----------------------------------------------------------------------------
+  // 2.2 SVG Calculations
+  // -----------------------------------------------------------------------------
   const radius = 50;
   const circumference = 2 * Math.PI * radius;
-  const strokeDasharray = `${(percentage * circumference) / 100} ${circumference}`;
+  const dashArray = (percentage * circumference) / 100;
+  const dashOffset = circumference - dashArray;
 
+  // =================================================================================
+  // 3. RENDER
+  // =================================================================================
   return (
-    <div className="relative w-48 h-48 mx-auto">
-      <svg className="transform -rotate-90 w-48 h-48">
+    <div className="relative h-48 w-48 mx-auto">
+      {/* SVG Circle */}
+      <svg className="w-full h-full transform -rotate-90">
         {/* Background circle */}
         <circle
           cx="96"
@@ -25,11 +45,14 @@ const Piechart = ({ myBalance, totalSupply }) => {
           r={radius}
           stroke="#3b82f6"
           strokeWidth="12"
-          strokeDasharray={strokeDasharray}
-          strokeLinecap="round"
           fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
         />
       </svg>
+
+      {/* Percentage Display */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center">
           <span className="text-2xl font-bold">
