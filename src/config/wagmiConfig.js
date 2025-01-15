@@ -28,7 +28,7 @@ export const config = createConfig({
   },
   connectors: [
     injected({
-      shimDisconnect: true,
+      shimDisconnect: false,
       target: 'metaMask'
     })
   ]

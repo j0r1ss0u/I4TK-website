@@ -1,15 +1,22 @@
+// ================ IMPORTS ================
 import React, { useState, useEffect } from "react";
+// RainbowKit & Wagmi imports
 import '@rainbow-me/rainbowkit/styles.css';
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
+import { useAccount } from 'wagmi'; // Ajout pour la gestion du wallet
+
+// Query Client
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Configuration & Providers
 import { config, chains } from './config/wagmiConfig';
 import { AuthProvider } from "./Components/AuthContext";
 import { MembersProvider } from './Components/Members/MembersContext';
 import { testFirebaseConnection } from "./services/firebase";
 
-// Import des composants
+// Components
 import Header from './Components/Header';
 import HomePage from './Components/Home/HomePage';
 import AboutPage from './Components/About/AboutPage';
@@ -17,6 +24,7 @@ import MembersPage from "./Components/Members/MembersPage";
 import LibraryPage from "./Components/Library/LibraryPage";
 import { ProtectedForumPage } from "./Components/Forum/ForumPage";
 
+// ================ QUERY CLIENT CONFIGURATION ================
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -25,12 +33,15 @@ const queryClient = new QueryClient({
   },
 });
 
+// ================ APP CONTENT COMPONENT ================
 function AppContent() {
+  // ===== State Management =====
   const [currentPage, setCurrentPage] = useState("home");
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
-  
+  const { address } = useAccount(); // Hook pour surveiller l'adresse du wallet
 
+  // ===== Provider Check Effect =====
   useEffect(() => {
     const checkProvider = async () => {
       try {
@@ -45,8 +56,8 @@ function AppContent() {
     checkProvider();
   }, []);
 
+  // ===== Environment & Firebase Check Effect =====
   useEffect(() => {
-    // Log initial pour voir si le composant se monte
     console.log('AppContent mounting...');
     console.log('Environment check:', {
       userAgent: navigator.userAgent,
@@ -69,12 +80,23 @@ function AppContent() {
     testConnection();
   }, []);
 
+  // ===== Wallet Change Effect =====
+  useEffect(() => {
+    if (address) {
+      console.log('Wallet address changed:', address);
+      // Refresh UI on wallet change
+      setIsLoading(true);
+      setTimeout(() => setIsLoading(false), 0);
+    }
+  }, [address]);
 
+  // ===== Language Handler =====
   const handleLanguageChange = (newLang) => {
     setCurrentLang(newLang);
     localStorage.setItem('preferredLanguage', newLang);
   };
 
+  // ===== Loading State =====
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -83,8 +105,10 @@ function AppContent() {
     );
   }
 
+  // ===== Render Component =====
   return (
     <div className="min-h-screen relative overflow-x-hidden">
+      {/* Background Image */}
       <div 
         className="fixed top-24 left-0 right-0 bottom-0 z-0"
         style={{
@@ -96,6 +120,7 @@ function AppContent() {
           backgroundColor: '#ffffff'
         }}
       />
+      {/* Header Section */}
       <div className="relative z-20">
         <Header 
           currentPage={currentPage} 
@@ -104,6 +129,7 @@ function AppContent() {
           onLanguageChange={handleLanguageChange}
         />
       </div>
+      {/* Main Content */}
       <div className="relative z-10 w-full">
         <main className="w-full overflow-x-hidden">
           {currentPage === "home" && <HomePage currentLang={currentLang} setCurrentPage={setCurrentPage} />}
@@ -117,7 +143,9 @@ function AppContent() {
   );
 }
 
+// ================ MAIN APP COMPONENT ================
 function App() {
+  // ===== Error Handler Effect =====
   useEffect(() => {
     console.log('App component mounting...');
     console.log('Wagmi config:', config);
@@ -134,6 +162,7 @@ function App() {
     return () => window.removeEventListener('error', handleError);
   }, []);
 
+  // ===== Render Component =====
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
