@@ -17,7 +17,7 @@ const I4TDashboard = () => {
   // -----------------------------------------------------------------------------
   const { address } = useAccount();
   const [balances, setBalances] = useState([]);
-  const [ownedToken, setOwnedToken] = useState([]);
+  const [ownedTokens, setOwnedTokens] = useState(new Set());
   const [myTotalBalance, setMyTotalBalance] = useState(0);
   const [networkTotalBalance, setNetworkTotalBalance] = useState(0);
 
@@ -40,27 +40,47 @@ const I4TDashboard = () => {
   // 3. DATA FETCHING FUNCTIONS
   // =================================================================================
   const getBalance = async (_address, _lastTokenId) => {
-    const addressArray = Array(Number(_lastTokenId) + 1).fill(_address);
-    const tokenIdArray = [];
-    for (let i = 0; i < Number(_lastTokenId) + 1; i++) {
-      tokenIdArray.push(i);
-    }
+    try {
+      const addressArray = Array(Number(_lastTokenId) + 1).fill(_address);
+      const tokenIdArray = Array.from({ length: Number(_lastTokenId) + 1 }, (_, i) => i);
 
-    const data = await publicClient.readContract({
+      console.log("BalanceOfBatch request:", { addresses: addressArray, tokenIds: tokenIdArray });
+
+      const data = await publicClient.readContract({
+        address: I4TKTokenAddress,
+        abi: I4TKTokenABI,
+        functionName: "balanceOfBatch",
+        args: [addressArray, tokenIdArray],
+      });
+
+      console.log("Balances received:", data.map((b, i) => ({
+        tokenId: i,
+        balance: b.toString()
+      })).filter(b => b.balance !== '0'));
+
+      setBalances(data);
+    } catch (error) {
+      console.error("Error in getBalance:", error);
+    }
+  };
+
+  const getTokenTotalSupply = async (tokenId) => {
+    return await publicClient.readContract({
       address: I4TKTokenAddress,
       abi: I4TKTokenABI,
-      functionName: "balanceOfBatch",
-      args: [addressArray, tokenIdArray],
+      functionName: "totalSupply",
+      args: [BigInt(tokenId)],
     });
-
-    setBalances(data);
   };
 
   const getTokenUri = async (_balances, _lastTokenId) => {
-    setOwnedToken([]); // Reset owned tokens before fetching new ones
+    setOwnedTokens(new Set()); // Reset owned tokens
+    console.log("Starting to fetch URIs for balances:", _balances);
+
     for (let i = 0; i < Number(_lastTokenId) + 1; i++) {
       if (_balances[i] !== BigInt(0)) {
         try {
+          console.log(`Processing token ${i} with balance ${_balances[i]}`);
           const URI = await publicClient.readContract({
             address: I4TKTokenAddress,
             abi: I4TKTokenABI,
@@ -68,14 +88,58 @@ const I4TDashboard = () => {
             args: [BigInt(i)],
           });
 
-          const tokenURIJson = parseBase64DataURL(URI);
-          setOwnedToken((prev) => [...prev, { 
+          console.log(`Raw URI received for token ${i}:`, URI);
+
+          let tokenURIJson;
+
+          if (URI.startsWith('data:application/json;base64,')) {
+            tokenURIJson = parseBase64DataURL(URI);
+          } else if (URI.startsWith('Qm') || URI.startsWith('bafy')) {
+            const response = await fetch(`https://ipfs.io/ipfs/${URI}`);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              tokenURIJson = await response.json();
+            } else {
+              throw new Error(`Unexpected content type: ${contentType}`);
+            }
+          } else {
+            throw new Error(`Unsupported URI format: ${URI}`);
+          }
+
+          console.log(`Token ${i}: Parsed metadata:`, tokenURIJson);
+
+          if (!tokenURIJson.name || !tokenURIJson.properties) {
+            throw new Error('Invalid metadata structure');
+          }
+
+          const tokenTotalSupply = await getTokenTotalSupply(i);
+          const ownershipPercentage = (Number(_balances[i]) / Number(tokenTotalSupply)) * 100;
+
+          setOwnedTokens((prev) => new Set([...prev, { 
             tokenId: i, 
             balance: _balances[i], 
-            tokenURIJson: tokenURIJson 
-          }]);
+            tokenURIJson,
+            ownershipPercentage
+          }]));
+
         } catch (error) {
-          console.error(`Error fetching URI for token ${i}:`, error);
+          console.error(`Error processing token ${i}:`, error);
+          const defaultMetadata = {
+            name: `I4TK Token #${i}`,
+            properties: {
+              title: `Document #${i}`,
+              description: `Metadata not available: ${error.message}`
+            }
+          };
+          setOwnedTokens((prev) => new Set([...prev, { 
+            tokenId: i, 
+            balance: _balances[i], 
+            tokenURIJson: defaultMetadata,
+            ownershipPercentage: 0
+          }]));
         }
       }
     }
@@ -89,6 +153,10 @@ const I4TDashboard = () => {
   useEffect(() => {
     const getAllbalance = async () => {
       if (address !== "undefined" && lastTokenId !== undefined) {
+        console.log("Fetching balances for:", {
+          address,
+          lastTokenId: lastTokenId.toString(),
+        });
         await getBalance(address, lastTokenId);
       }
     };
@@ -105,23 +173,22 @@ const I4TDashboard = () => {
   // 4.3 Fetch token URIs when balances update
   useEffect(() => {
     const getOwnToken = async () => {
-      if (balances !== "undefined" && balances?.length > 0) {
+      if (balances?.length > 0 && balances.some(b => b !== BigInt(0)) && ownedTokens.size === 0) {
         await getTokenUri(balances, lastTokenId);
       }
     };
-
     getOwnToken();
-  }, [balances, lastTokenId]);
+  }, [balances, lastTokenId, ownedTokens.size]);
 
   // 4.4 Calculate total balance
   useEffect(() => {
-    if (ownedToken?.length > 0) {
-      const totalBalance = ownedToken.reduce((acc, token) => {
+    if (ownedTokens.size > 0) {
+      const totalBalance = Array.from(ownedTokens).reduce((acc, token) => {
         return acc + Number(token.balance);
       }, 0);
       setMyTotalBalance(totalBalance);
     }
-  }, [ownedToken]);
+  }, [ownedTokens]);
 
   // =================================================================================
   // 5. RENDER
@@ -131,7 +198,7 @@ const I4TDashboard = () => {
       {/* Main Title */}
       <div className="mx-auto max-w-2xl px-0 py-4 sm:px-6 sm:py-4 lg:max-w-7xl lg:px-2">
         <h1 className="text-4xl font-serif tracking-tight text-gray-900 mb-8">
-          
+
         </h1>
       </div>
 
@@ -151,7 +218,7 @@ const I4TDashboard = () => {
         <h2 className="text-2xl font-serif tracking-tight text-gray-900">My IP NFTs</h2>
 
         <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 xl:gap-x-8">
-          {ownedToken.map((token, index) => (
+          {Array.from(ownedTokens).map((token, index) => (
             <div key={index} className="group relative">
               <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-md bg-gray-200 lg:aspect-none group-hover:opacity-75 lg:h-80">
                 <img
@@ -173,14 +240,14 @@ const I4TDashboard = () => {
                   </p>
                 </div>
                 <p className="text-sm font-medium text-gray-900">
-                  ownership: {Number(token.balance) / 1000000} %
+                  ownership: {token.ownershipPercentage.toFixed(2)}%
                 </p>
               </div>
             </div>
           ))}
         </div>
 
-        {(!ownedToken || ownedToken.length === 0) && (
+        {(ownedTokens.size === 0) && (
           <div className="text-center text-gray-500 py-8">
             No documents found for this address
           </div>
