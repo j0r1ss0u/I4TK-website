@@ -9,6 +9,7 @@ import NetworkPublications from './components/NetworkPublications';
 import SubmitContribution from './components/SubmitContribution';
 import LibrarianSpace from './components/LibrarianSpace';
 import { documentsService } from '../../services/documentsService';
+import I4TKDashboard from './components/I4TDashboard';
 
 // =============== ROLE HASHES ===============
 const ROLE_HASHES = {
@@ -159,8 +160,11 @@ const LibraryPage = () => {
   );
 
   const renderI4TAndITab = () => (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <h2 className="text-2xl font-serif font-bold">I4T & I Dashboard</h2>
+      <div className="mt-4">
+        <I4TKDashboard />
+      </div>
     </div>
   );
 
