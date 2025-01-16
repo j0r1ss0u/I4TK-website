@@ -270,7 +270,7 @@ const I4TDashboard = () => {
 
       {/* Statistics Section */}
       <div className="mx-auto max-w-2xl px-0 py-0 sm:px-6 sm:py-2 lg:max-w-7xl lg:px-2">
-        <h2 className="text-2xl font-serif tracking-tight text-gray-900">Statistics</h2>
+        <h2 className="text-2xl font-serif tracking-tight text-gray-900">Community statistics</h2>
         <h3 className="text-lg font-serif text-gray-600 mt-2">
           Network total IP value: {formatTokenAmount(networkTotalBalance)} i4t Tokens
         </h3>
@@ -281,7 +281,7 @@ const I4TDashboard = () => {
 
       {/* NFTs Grid */}
       <div className="mx-auto max-w-2xl px-2 py-4 sm:px-6 sm:py-4 lg:max-w-7xl lg:px-2">
-        <h2 className="text-2xl font-serif tracking-tight text-gray-900">My Intellectual property in i4t tokens</h2>
+        <h2 className="text-2xl font-serif tracking-tight text-gray-900">My intellectual property in i4t tokens</h2>
 
         <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 xl:gap-x-8">
           {ownedTokens.map((token) => (
