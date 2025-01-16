@@ -1,10 +1,20 @@
+// -------------------------------------------
+// MembersPage.jsx
+// Page principale de gestion des membres du réseau
+// Composant parent qui gère l'affichage des différentes vues
+// -------------------------------------------
+
 import React, { useState, useEffect } from 'react';
 import { MapPin, Building2, Mail, Edit, Trash2, Plus, X, Search, Users, Globe2 } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { useMembers } from './MembersContext';
 import MapView from './MapView';
+import GovernanceView from './GovernanceView';
 
+// -------------------------------------------
 // Composant MemberCard
+// Carte individuelle affichant les informations d'un membre
+// -------------------------------------------
 const MemberCard = ({ member }) => (
   <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
     <div className="flex items-start justify-between">
@@ -51,7 +61,10 @@ const MemberCard = ({ member }) => (
   </div>
 );
 
-// Vue en cartes (CardsView)
+// -------------------------------------------
+// Composant CardsView
+// Vue principale affichant la liste des membres sous forme de cartes
+// -------------------------------------------
 const CardsView = () => {
   const { members } = useMembers();
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,8 +85,6 @@ const CardsView = () => {
       member.category?.toLowerCase().includes(searchLower)
     );
   });
-
-  console.log("Membres filtrés:", filteredMembers.length);
 
   return (
     <div>
@@ -98,16 +109,24 @@ const CardsView = () => {
   );
 };
 
-// Vue carte (MapView)
+// -------------------------------------------
+// Composant MapViewWrapper
+// Wrapper pour la vue carte
+// -------------------------------------------
 const MapViewWrapper = () => <MapView />;
 
-// Vue admin (AdminView)
+// -------------------------------------------
+// Composant AdminView
+// Vue d'administration pour la gestion des membres
+// Accessible uniquement aux administrateurs
+// -------------------------------------------
 const AdminView = () => {
   const { members, updateMembers } = useMembers();
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Handlers pour les actions CRUD
   const handleEdit = (member) => {
     setEditingMember(member);
     setShowForm(true);
@@ -139,6 +158,7 @@ const AdminView = () => {
     setEditingMember(null);
   };
 
+  // Filtrage des membres
   const filteredMembers = members.filter(member => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -151,6 +171,7 @@ const AdminView = () => {
 
   return (
     <div className="w-full">
+      {/* Barre d'actions */}
       <div className="mb-6 flex justify-between items-center">
         <div className="relative flex-1 max-w-md">
           <input
@@ -171,6 +192,7 @@ const AdminView = () => {
         </button>
       </div>
 
+      {/* Table des membres */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -227,6 +249,7 @@ const AdminView = () => {
         </div>
       </div>
 
+      {/* Modal de formulaire */}
       {showForm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
           <div className="bg-white rounded-lg p-6 max-w-md w-full m-4">
@@ -390,36 +413,54 @@ const AdminView = () => {
       )}
     </div>
   );
-  };
+};
 
-  // Composant pour les boutons de sélection de vue
-  const ViewSelector = ({ viewMode, setViewMode, userRole }) => (
-  <div className="flex gap-4">
-    <button
-      onClick={() => setViewMode('cards')}
-      className={`px-3 py-2 rounded ${viewMode === 'cards' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
-    >
-      Members Details
-    </button>
-    <button
-      onClick={() => setViewMode('map')}
-      className={`px-3 py-2 rounded ${viewMode === 'map' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
-    >
-      Map View
-    </button>
-    {userRole === 'admin' && (
+// -------------------------------------------
+// Composant ViewSelector
+// Gère la sélection des différentes vues
+// -------------------------------------------
+const ViewSelector = ({ viewMode, setViewMode, userRole }) => {
+  const showGovernance = userRole === 'admin' || userRole === 'member';
+
+  return (
+    <div className="flex gap-4">
       <button
-        onClick={() => setViewMode('table')}
-        className={`px-3 py-2 rounded ${viewMode === 'table' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+        onClick={() => setViewMode('cards')}
+        className={`px-3 py-2 rounded ${viewMode === 'cards' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
       >
-        Admin View
+        Members Details
       </button>
-    )}
-  </div>
+      <button
+        onClick={() => setViewMode('map')}
+        className={`px-3 py-2 rounded ${viewMode === 'map' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+      >
+        Map View
+      </button>
+      {userRole === 'admin' && (
+        <button
+          onClick={() => setViewMode('table')}
+          className={`px-3 py-2 rounded ${viewMode === 'table' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+        >
+          Admin View
+        </button>
+      )}
+      {showGovernance && (
+        <button
+          onClick={() => setViewMode('governance')}
+          className={`px-3 py-2 rounded ${viewMode === 'governance' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+        >
+          Governance
+        </button>
+      )}
+    </div>
   );
+};
 
-  // Composant principal MembersPageWrapper
-  const MembersPageWrapper = () => {
+// -------------------------------------------
+// Composant principal MembersPageWrapper
+// Composant racine qui gère l'affichage des différentes vues
+// -------------------------------------------
+const MembersPageWrapper = () => {
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState('cards');
 
@@ -433,16 +474,19 @@ const AdminView = () => {
       {viewMode === 'cards' && <CardsView />}
       {viewMode === 'map' && <MapViewWrapper />}
       {viewMode === 'table' && user?.role === 'admin' && <AdminView />}
+      {viewMode === 'governance' && (user?.role === 'admin' || user?.role === 'member') && <GovernanceView />}
     </div>
   );
-  };
+};
 
-  // Export des composants
-  const components = {
+// -------------------------------------------
+// Export des composants
+// -------------------------------------------
+const components = {
   CardsView,
   MapViewWrapper,
   AdminView,
   MembersPageWrapper
-  };
+};
 
-  export default components;
+export default components;
