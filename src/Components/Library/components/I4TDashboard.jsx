@@ -7,44 +7,111 @@ import { publicClient } from "../../../utils/client";
 import { I4TKTokenAddress, I4TKTokenABI } from "../../../constants";
 import { parseBase64DataURL } from "../../../utils/utilis";
 import Piechart from "./Piechart";
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../../services/firebase';
 
 // =================================================================================
-// 2. COMPONENT DEFINITION
+// 2. ENVIRONMENT CONFIGURATION
+// =================================================================================
+// TESTNET SPECIFIC - TO BE REMOVED WHEN DEPLOYING TO PRODUCTION
+const TEST_CONFIG = {
+  excludeTestTokens: true, // Set to false when deploying to production
+  testTokenRange: {
+    start: 1,
+    end: 49
+  },
+  totalTestTokens: 4900000000n // Total number of test tokens to exclude
+};
+
+// =================================================================================
+// 3. COMPONENT DEFINITION
 // =================================================================================
 const I4TDashboard = () => {
   // -----------------------------------------------------------------------------
-  // 2.1 State Management
+  // 3.1 State Management
   // -----------------------------------------------------------------------------
   const { address } = useAccount();
   const [balances, setBalances] = useState([]);
-  const [ownedTokens, setOwnedTokens] = useState(new Set());
+  const [ownedTokens, setOwnedTokens] = useState([]);
   const [myTotalBalance, setMyTotalBalance] = useState(0);
   const [networkTotalBalance, setNetworkTotalBalance] = useState(0);
 
   // -----------------------------------------------------------------------------
-  // 2.2 Contract Reads
+  // 3.2 Contract Reads
   // -----------------------------------------------------------------------------
-  const { data: lastTokenId, isSuccess: isLastTokenIdSuccess } = useReadContract({
+  const { data: lastTokenId } = useReadContract({
     address: I4TKTokenAddress,
     abi: I4TKTokenABI,
     functionName: "lastTokenId",
   });
 
-  const { data: totalSupply, isSuccess: totalSupplySuccess } = useReadContract({
+  const { data: totalSupply } = useReadContract({
     address: I4TKTokenAddress,
     abi: I4TKTokenABI,
     functionName: "totalSupply",
   });
 
   // =================================================================================
-  // 3. DATA FETCHING FUNCTIONS
+  // 4. UTILITY FUNCTIONS
+  // =================================================================================
+  const TOKEN_DECIMALS = 100000000; // 1 I4T Token = 100000000 Tokens
+
+  const isTestToken = (tokenId) => {
+    if (!TEST_CONFIG.excludeTestTokens) return false;
+    const id = Number(tokenId);
+    return id >= TEST_CONFIG.testTokenRange.start && id <= TEST_CONFIG.testTokenRange.end;
+  };
+
+  const formatTokenAmount = (rawAmount) => {
+    if (!rawAmount) return "0.0";
+    try {
+      const amount = typeof rawAmount === 'bigint' ? Number(rawAmount) : Number(rawAmount);
+      if (isNaN(amount)) return "0.0";
+      const i4tTokens = amount / TOKEN_DECIMALS;
+      return i4tTokens.toLocaleString(undefined, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+      });
+    } catch (error) {
+      console.error('Error formatting token amount:', error);
+      return "0.0";
+    }
+  };
+
+  const getTokenTotalSupply = async (tokenId) => {
+    try {
+      const supplyFunction = I4TKTokenABI.find(
+        item => item.name === "totalSupply" && item.inputs?.length === 1
+      );
+
+      if (!supplyFunction) {
+        console.error("Could not find totalSupply(uint256) function in ABI");
+        return BigInt(0);
+      }
+
+      const supply = await publicClient.readContract({
+        address: I4TKTokenAddress,
+        abi: [supplyFunction],
+        functionName: "totalSupply",
+        args: [BigInt(tokenId)],
+      });
+
+      return supply;
+    } catch (error) {
+      console.error(`Error getting total supply for token ${tokenId}:`, error);
+      return BigInt(0);
+    }
+  };
+
+  // =================================================================================
+  // 5. DATA FETCHING FUNCTIONS
   // =================================================================================
   const getBalance = async (_address, _lastTokenId) => {
+    if (!_address || _lastTokenId === undefined) return;
+
     try {
       const addressArray = Array(Number(_lastTokenId) + 1).fill(_address);
       const tokenIdArray = Array.from({ length: Number(_lastTokenId) + 1 }, (_, i) => i);
-
-      console.log("BalanceOfBatch request:", { addresses: addressArray, tokenIds: tokenIdArray });
 
       const data = await publicClient.readContract({
         address: I4TKTokenAddress,
@@ -53,152 +120,151 @@ const I4TDashboard = () => {
         args: [addressArray, tokenIdArray],
       });
 
-      console.log("Balances received:", data.map((b, i) => ({
-        tokenId: i,
-        balance: b.toString()
-      })).filter(b => b.balance !== '0'));
-
       setBalances(data);
     } catch (error) {
       console.error("Error in getBalance:", error);
+      setBalances([]);
     }
-  };
-
-  const getTokenTotalSupply = async (tokenId) => {
-    return await publicClient.readContract({
-      address: I4TKTokenAddress,
-      abi: I4TKTokenABI,
-      functionName: "totalSupply",
-      args: [BigInt(tokenId)],
-    });
   };
 
   const getTokenUri = async (_balances, _lastTokenId) => {
-    setOwnedTokens(new Set()); // Reset owned tokens
-    console.log("Starting to fetch URIs for balances:", _balances);
+    if (!_balances || !_lastTokenId) return;
+
+    const newTokens = [];
 
     for (let i = 0; i < Number(_lastTokenId) + 1; i++) {
-      if (_balances[i] !== BigInt(0)) {
+      // Skip test tokens based on configuration
+      if (TEST_CONFIG.excludeTestTokens && isTestToken(i)) {
+        continue;
+      }
+
+      if (_balances[i] && _balances[i] !== BigInt(0)) {
         try {
-          console.log(`Processing token ${i} with balance ${_balances[i]}`);
-          const URI = await publicClient.readContract({
-            address: I4TKTokenAddress,
-            abi: I4TKTokenABI,
-            functionName: "uri",
-            args: [BigInt(i)],
-          });
-
-          console.log(`Raw URI received for token ${i}:`, URI);
-
-          let tokenURIJson;
-
-          if (URI.startsWith('data:application/json;base64,')) {
-            tokenURIJson = parseBase64DataURL(URI);
-          } else if (URI.startsWith('Qm') || URI.startsWith('bafy')) {
-            const response = await fetch(`https://ipfs.io/ipfs/${URI}`);
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
-              tokenURIJson = await response.json();
-            } else {
-              throw new Error(`Unexpected content type: ${contentType}`);
-            }
-          } else {
-            throw new Error(`Unsupported URI format: ${URI}`);
-          }
-
-          console.log(`Token ${i}: Parsed metadata:`, tokenURIJson);
-
-          if (!tokenURIJson.name || !tokenURIJson.properties) {
-            throw new Error('Invalid metadata structure');
-          }
-
-          const tokenTotalSupply = await getTokenTotalSupply(i);
-          const ownershipPercentage = (Number(_balances[i]) / Number(tokenTotalSupply)) * 100;
-
-          setOwnedTokens((prev) => new Set([...prev, { 
-            tokenId: i, 
-            balance: _balances[i], 
-            tokenURIJson,
-            ownershipPercentage
-          }]));
-
-        } catch (error) {
-          console.error(`Error processing token ${i}:`, error);
-          const defaultMetadata = {
-            name: `I4TK Token #${i}`,
-            properties: {
-              title: `Document #${i}`,
-              description: `Metadata not available: ${error.message}`
+          let tokenData = {
+            tokenId: i,
+            balance: _balances[i],
+            tokenURIJson: {
+              name: `I4TK Token #${i}`,
+              properties: {
+                title: `Document #${i}`,
+                description: "Loading metadata..."
+              }
             }
           };
-          setOwnedTokens((prev) => new Set([...prev, { 
-            tokenId: i, 
-            balance: _balances[i], 
-            tokenURIJson: defaultMetadata,
-            ownershipPercentage: 0
-          }]));
+
+          try {
+            const URI = await publicClient.readContract({
+              address: I4TKTokenAddress,
+              abi: I4TKTokenABI,
+              functionName: "uri",
+              args: [BigInt(i)],
+            });
+
+            if (URI && URI.startsWith('data:application/json;base64,')) {
+              tokenData.tokenURIJson = parseBase64DataURL(URI);
+            } else if (URI && URI.startsWith('Qm')) {
+              const response = await fetch(`https://ipfs.io/ipfs/${URI}`);
+              if (response.ok) {
+                const json = await response.json();
+                if (json.name && json.properties) {
+                  tokenData.tokenURIJson = json;
+                }
+              }
+            }
+          } catch (metadataError) {
+            console.log(`Blockchain metadata failed for token ${i}, trying Firestore`);
+
+            const documentsRef = collection(db, 'web3IP');
+            const q = query(documentsRef, where('tokenId', '==', i.toString()));
+            const snapshot = await getDocs(q);
+
+            if (!snapshot.empty) {
+              const doc = snapshot.docs[0].data();
+              tokenData.tokenURIJson = {
+                name: doc.title || `I4TK Token #${i}`,
+                properties: {
+                  title: doc.title || `Document #${i}`,
+                  description: doc.description || "No description available"
+                }
+              };
+            }
+          }
+
+          // Calculate ownership percentage
+          const totalSupply = await getTokenTotalSupply(i);
+          if (totalSupply > BigInt(0)) {
+            const percentage = (Number(tokenData.balance) / Number(totalSupply)) * 100;
+            tokenData.ownershipPercentage = percentage;
+          }
+
+          newTokens.push(tokenData);
+        } catch (error) {
+          console.error(`Error processing token ${i}:`, error);
         }
       }
     }
+
+    setOwnedTokens(newTokens);
   };
 
   // =================================================================================
-  // 4. EFFECTS & DATA PROCESSING
+  // 6. EFFECTS & DATA PROCESSING
   // =================================================================================
-
-  // 4.1 Fetch balances when lastTokenId is available
+  // 6.1 Initial balance fetch
   useEffect(() => {
-    const getAllbalance = async () => {
-      if (address !== "undefined" && lastTokenId !== undefined) {
-        console.log("Fetching balances for:", {
-          address,
-          lastTokenId: lastTokenId.toString(),
-        });
-        await getBalance(address, lastTokenId);
-      }
-    };
-    getAllbalance();
-  }, [lastTokenId, address]);
-
-  // 4.2 Update network total balance
-  useEffect(() => {
-    if (address !== "undefined" && totalSupply !== undefined) {
-      setNetworkTotalBalance(Number(totalSupply));
+    if (address && lastTokenId !== undefined) {
+      getBalance(address, lastTokenId);
     }
-  }, [totalSupplySuccess, address, totalSupply]);
+  }, [address, lastTokenId]);
 
-  // 4.3 Fetch token URIs when balances update
+  // 6.2 Network total supply update
   useEffect(() => {
-    const getOwnToken = async () => {
-      if (balances?.length > 0 && balances.some(b => b !== BigInt(0)) && ownedTokens.size === 0) {
-        await getTokenUri(balances, lastTokenId);
+    if (totalSupply === undefined) return;
+
+    try {
+      let total = typeof totalSupply === 'bigint' ? totalSupply : BigInt(totalSupply);
+
+      // If excluding test tokens, subtract their fixed total supply
+      if (TEST_CONFIG.excludeTestTokens) {
+        total = total - TEST_CONFIG.totalTestTokens;
       }
-    };
-    getOwnToken();
-  }, [balances, lastTokenId, ownedTokens.size]);
 
-  // 4.4 Calculate total balance
+      setNetworkTotalBalance(Number(total));
+    } catch (error) {
+      console.error("Error calculating network total:", error);
+      setNetworkTotalBalance(0);
+    }
+  }, [totalSupply]);
+
+  // 6.3 Token URI and metadata fetch
   useEffect(() => {
-    if (ownedTokens.size > 0) {
-      const totalBalance = Array.from(ownedTokens).reduce((acc, token) => {
-        return acc + Number(token.balance);
+    if (balances?.length > 0 && lastTokenId !== undefined) {
+      getTokenUri(balances, lastTokenId);
+    }
+  }, [balances, lastTokenId]);
+
+  // 6.4 Total balance calculation
+  useEffect(() => {
+    if (ownedTokens.length > 0) {
+      const total = ownedTokens.reduce((acc, token) => {
+        const tokenValue = typeof token.balance === 'bigint' ? Number(token.balance) : Number(token.balance || 0);
+        return acc + tokenValue;
       }, 0);
-      setMyTotalBalance(totalBalance);
+      setMyTotalBalance(total);
+    } else {
+      setMyTotalBalance(0);
     }
   }, [ownedTokens]);
 
   // =================================================================================
-  // 5. RENDER
+  // 7. RENDER
   // =================================================================================
   return (
     <div className="bg-white">
-      {/* Main Title */}
+      {/* Title */}
       <div className="mx-auto max-w-2xl px-0 py-4 sm:px-6 sm:py-4 lg:max-w-7xl lg:px-2">
         <h1 className="text-4xl font-serif tracking-tight text-gray-900 mb-8">
-
+          
         </h1>
       </div>
 
@@ -206,7 +272,7 @@ const I4TDashboard = () => {
       <div className="mx-auto max-w-2xl px-0 py-0 sm:px-6 sm:py-2 lg:max-w-7xl lg:px-2">
         <h2 className="text-2xl font-serif tracking-tight text-gray-900">Statistics</h2>
         <h3 className="text-lg font-serif text-gray-600 mt-2">
-          Network total IP value: {networkTotalBalance}
+          Network total IP value: {formatTokenAmount(networkTotalBalance)} i4t Tokens
         </h3>
         <div className="mt-4">
           <Piechart myBalance={myTotalBalance} totalSupply={networkTotalBalance} />
@@ -215,39 +281,37 @@ const I4TDashboard = () => {
 
       {/* NFTs Grid */}
       <div className="mx-auto max-w-2xl px-2 py-4 sm:px-6 sm:py-4 lg:max-w-7xl lg:px-2">
-        <h2 className="text-2xl font-serif tracking-tight text-gray-900">My IP NFTs</h2>
+        <h2 className="text-2xl font-serif tracking-tight text-gray-900">My Intellectual property in i4t tokens</h2>
 
         <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4 xl:gap-x-8">
-          {Array.from(ownedTokens).map((token, index) => (
-            <div key={index} className="group relative">
-              <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-md bg-gray-200 lg:aspect-none group-hover:opacity-75 lg:h-80">
+          {ownedTokens.map((token) => (
+            <div key={token.tokenId} className="group relative">
+              <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-md bg-gray-200 lg:aspect-none group-hover:opacity-75 lg:h-80 relative">
                 <img
                   src="/assets/logos/I4T token.jpeg"
                   className="h-full w-full object-contain object-center lg:h-full lg:w-full"
                   alt={token.tokenURIJson.name}
                 />
               </div>
-              <div className="mt-4 flex justify-between">
-                <div>
-                  <h3 className="text-sm text-gray-700">
-                    <a href="#">
-                      <span aria-hidden="true" className="absolute inset-0" />
-                      {token.tokenURIJson.name}
-                    </a>
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {token.tokenURIJson.properties.title}
+              <div className="mt-4">
+                <h3 className="text-sm font-medium text-gray-900">
+                  {token.tokenURIJson.name}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {token.tokenURIJson.properties.title}
+                </p>
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-sm text-gray-700">Token #{token.tokenId}</p>
+                  <p className="text-sm font-medium text-blue-600">
+                    {formatTokenAmount(token.balance)} i4t Tokens
                   </p>
                 </div>
-                <p className="text-sm font-medium text-gray-900">
-                  ownership: {token.ownershipPercentage.toFixed(2)}%
-                </p>
               </div>
             </div>
           ))}
         </div>
 
-        {(ownedTokens.size === 0) && (
+        {ownedTokens.length === 0 && (
           <div className="text-center text-gray-500 py-8">
             No documents found for this address
           </div>
