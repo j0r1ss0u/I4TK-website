@@ -458,11 +458,10 @@ const ViewSelector = ({ viewMode, setViewMode, userRole }) => {
 
 // -------------------------------------------
 // Composant principal MembersPageWrapper
-// Composant racine qui gère l'affichage des différentes vues
 // -------------------------------------------
-const MembersPageWrapper = () => {
+const MembersPageWrapper = ({ initialView }) => {  // Ajout de initialView dans les props
   const { user } = useAuth();
-  const [viewMode, setViewMode] = useState('cards');
+  const [viewMode, setViewMode] = useState(initialView || 'cards');  // Utilisation de initialView
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -486,7 +485,9 @@ const components = {
   CardsView,
   MapViewWrapper,
   AdminView,
-  MembersPageWrapper
+  MembersPageWrapper: ({ currentLang, initialView }) => (  // Ajout de initialView ici aussi
+    <MembersPageWrapper currentLang={currentLang} initialView={initialView} />
+  )
 };
 
 export default components;

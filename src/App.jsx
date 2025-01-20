@@ -5,7 +5,7 @@ import '@rainbow-me/rainbowkit/styles.css';
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
-import { useAccount } from 'wagmi'; // Ajout pour la gestion du wallet
+import { useAccount } from 'wagmi';
 
 // Query Client
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -39,7 +39,8 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState("home");
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
-  const { address } = useAccount(); // Hook pour surveiller l'adresse du wallet
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('preferredView') || 'cards');
+  const { address } = useAccount();
 
   // ===== Provider Check Effect =====
   useEffect(() => {
@@ -84,7 +85,6 @@ function AppContent() {
   useEffect(() => {
     if (address) {
       console.log('Wallet address changed:', address);
-      // Refresh UI on wallet change
       setIsLoading(true);
       setTimeout(() => setIsLoading(false), 0);
     }
@@ -132,9 +132,20 @@ function AppContent() {
       {/* Main Content */}
       <div className="relative z-10 w-full">
         <main className="w-full overflow-x-hidden">
-          {currentPage === "home" && <HomePage currentLang={currentLang} setCurrentPage={setCurrentPage} />}
+          {currentPage === "home" && (
+            <HomePage 
+              currentLang={currentLang} 
+              setCurrentPage={setCurrentPage}
+              setActiveView={setViewMode}
+            />
+          )}
           {currentPage === "about" && <AboutPage currentLang={currentLang} />}
-          {currentPage === "members" && <MembersPage.MembersPageWrapper currentLang={currentLang} />}
+          {currentPage === "members" && (
+            <MembersPage.MembersPageWrapper 
+              currentLang={currentLang}
+              initialView={localStorage.getItem('preferredView')}
+            />
+          )}
           {currentPage === "library" && <LibraryPage currentLang={currentLang} />}
           {currentPage === "forum" && <ProtectedForumPage currentLang={currentLang} />}
         </main>

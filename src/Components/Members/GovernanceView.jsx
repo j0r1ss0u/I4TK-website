@@ -5,9 +5,21 @@
 // -------------------------------------------
 
 import React, { useState, useEffect } from 'react';
-import { Edit, Save, X, Plus, Trash2, Mail, Linkedin } from 'lucide-react';
+import { Edit, X, Plus, Trash2, Mail, Linkedin } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { useMembers } from './MembersContext';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  doc, 
+  deleteDoc, 
+  updateDoc, 
+  serverTimestamp,
+  where 
+} from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 // -------------------------------------------
 // Types et constantes
@@ -196,43 +208,84 @@ const GovernanceSection = ({ title, type, members: governanceMembers, onAdd, onE
 const GovernanceView = () => {
   const { user } = useAuth();
   const { members } = useMembers();
-  const [governanceData, setGovernanceData] = useState(() => {
-    const saved = localStorage.getItem('governanceData');
-    return saved ? JSON.parse(saved) : {
-      [GOVERNANCE_TYPES.PRESIDENCY]: [],
-      [GOVERNANCE_TYPES.STEERING]: [],
-      [GOVERNANCE_TYPES.ETHICS]: [],
-      [GOVERNANCE_TYPES.OPERATING]: []
-    };
+  const [governanceData, setGovernanceData] = useState({
+    [GOVERNANCE_TYPES.PRESIDENCY]: [],
+    [GOVERNANCE_TYPES.STEERING]: [],
+    [GOVERNANCE_TYPES.ETHICS]: [],
+    [GOVERNANCE_TYPES.OPERATING]: []
   });
-
   const [editMode, setEditMode] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Persistance des données
+  // Chargement initial des données
   useEffect(() => {
-    localStorage.setItem('governanceData', JSON.stringify(governanceData));
-  }, [governanceData]);
+    const loadGovernanceData = async () => {
+      try {
+        setIsLoading(true);
+        const governanceRef = collection(db, 'gouvernance');
+        const snapshot = await getDocs(governanceRef);
 
-  // Gestion des actions (uniquement pour les admins)
-  const handleAdd = (type) => {
-    if (user?.role !== 'admin') return;
+        const organized = {
+          [GOVERNANCE_TYPES.PRESIDENCY]: [],
+          [GOVERNANCE_TYPES.STEERING]: [],
+          [GOVERNANCE_TYPES.ETHICS]: [],
+          [GOVERNANCE_TYPES.OPERATING]: []
+        };
 
-    const newMember = {
-      id: Date.now(),
-      name: '',
-      organization: '',
-      linkedin: '',
-      email: '',
-      comments: ''
+        snapshot.forEach((doc) => {
+          const data = { id: doc.id, ...doc.data() };
+          if (organized[data.type]) {
+            organized[data.type].push(data);
+          }
+        });
+
+        setGovernanceData(organized);
+        setError(null);
+      } catch (err) {
+        console.error('Error loading governance data:', err);
+        setError('Failed to load governance data. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    setGovernanceData(prev => ({
-      ...prev,
-      [type]: [...prev[type], newMember]
-    }));
-    setEditingItem(newMember);
-    setEditMode(true);
+    loadGovernanceData();
+  }, []);
+
+  // Gestion des actions (uniquement pour les admins)
+  const handleAdd = async (type) => {
+    if (user?.role !== 'admin') return;
+
+    try {
+      const governanceRef = collection(db, 'gouvernance');
+      const newMember = {
+        name: '',
+        organization: '',
+        type: type,
+        linkedin: '',
+        email: '',
+        comments: '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      const docRef = await addDoc(governanceRef, newMember);
+      const memberWithId = { id: docRef.id, ...newMember };
+
+      setGovernanceData(prev => ({
+        ...prev,
+        [type]: [...prev[type], memberWithId]
+      }));
+
+      setEditingItem(memberWithId);
+      setEditMode(true);
+      setError(null);
+    } catch (err) {
+      console.error('Error adding member:', err);
+      setError('Failed to add member. Please try again.');
+    }
   };
 
   const handleEdit = (member) => {
@@ -241,24 +294,47 @@ const GovernanceView = () => {
     setEditMode(true);
   };
 
-  const handleSave = (type, editedMember) => {
-    setGovernanceData(prev => ({
-      ...prev,
-      [type]: prev[type].map(m => 
-        m.id === editedMember.id ? editedMember : m
-      )
-    }));
-    setEditMode(false);
-    setEditingItem(null);
+  const handleSave = async (type, editedMember) => {
+    try {
+      const memberRef = doc(db, 'gouvernance', editedMember.id);
+      const updateData = {
+        ...editedMember,
+        updatedAt: serverTimestamp()
+      };
+
+      await updateDoc(memberRef, updateData);
+
+      setGovernanceData(prev => ({
+        ...prev,
+        [type]: prev[type].map(m => 
+          m.id === editedMember.id ? editedMember : m
+        )
+      }));
+
+      setEditMode(false);
+      setEditingItem(null);
+      setError(null);
+    } catch (err) {
+      console.error('Error updating member:', err);
+      setError('Failed to update member. Please try again.');
+    }
   };
 
-  const handleDelete = (type, memberId) => {
+  const handleDelete = async (type, memberId) => {
     if (user?.role !== 'admin' || !window.confirm('Are you sure you want to delete this member?')) return;
 
-    setGovernanceData(prev => ({
-      ...prev,
-      [type]: prev[type].filter(m => m.id !== memberId)
-    }));
+    try {
+      await deleteDoc(doc(db, 'gouvernance', memberId));
+
+      setGovernanceData(prev => ({
+        ...prev,
+        [type]: prev[type].filter(m => m.id !== memberId)
+      }));
+      setError(null);
+    } catch (err) {
+      console.error('Error deleting member:', err);
+      setError('Failed to delete member. Please try again.');
+    }
   };
 
   // Vérification des permissions
@@ -268,6 +344,10 @@ const GovernanceView = () => {
         You need to be logged in as a member or administrator to view this page.
       </div>
     );
+  }
+
+  if (isLoading) {
+    return <div className="p-4 text-center">Loading governance data...</div>;
   }
 
   // Props communs pour les sections
@@ -283,6 +363,11 @@ const GovernanceView = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4">
+      {error && (
+        <div className="mb-4 p-4 text-red-700 bg-red-100 rounded-md border border-red-300">
+          {error}
+        </div>
+      )}
       {Object.entries(GOVERNANCE_TYPES).map(([key, title]) => (
         <GovernanceSection
           key={key}
