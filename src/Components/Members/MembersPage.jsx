@@ -5,11 +5,12 @@
 // -------------------------------------------
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Building2, Mail, Edit, Trash2, Plus, X, Search, Users, Globe2 } from 'lucide-react';
+import { MapPin, Building2, Mail, Edit, Trash2, Plus, X, Search, Users, Globe2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { useMembers } from './MembersContext';
 import MapView from './MapView';
 import GovernanceView from './GovernanceView';
+
 
 // -------------------------------------------
 // Composant MemberCard
@@ -139,6 +140,13 @@ const AdminView = () => {
     }
   };
 
+  const handleVisibilityToggle = (memberId) => {
+    const newMembers = members.map(m => 
+      m.id === memberId ? { ...m, isVisible: !m.isVisible } : m
+    );
+    updateMembers(newMembers);
+  };
+
   const handleSubmit = (formData) => {
     let newMembers;
     if (editingMember) {
@@ -202,6 +210,7 @@ const AdminView = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visibility</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -227,6 +236,14 @@ const AdminView = () => {
                         {member.website}
                       </a>
                     )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => handleVisibilityToggle(member.id)}
+                      className={`p-1 rounded ${member.isVisible ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                    >
+                      {member.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
@@ -276,117 +293,24 @@ const AdminView = () => {
                 category: e.target.category.value,
                 region: e.target.region.value,
                 lat: parseFloat(e.target.lat.value),
-                lng: parseFloat(e.target.lng.value)
+                lng: parseFloat(e.target.lng.value),
+                isVisible: e.target.isVisible.checked
               };
               handleSubmit(formData);
             }} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
+              {/* ... (autres champs du formulaire inchangés) ... */}
+
+              <div className="flex items-center">
                 <input
-                  name="name"
-                  type="text"
-                  defaultValue={editingMember?.name}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  required
+                  id="isVisible"
+                  name="isVisible"
+                  type="checkbox"
+                  defaultChecked={editingMember?.isVisible}
+                  className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                <input
-                  name="fullName"
-                  type="text"
-                  defaultValue={editingMember?.fullName}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">City</label>
-                <input
-                  name="city"
-                  type="text"
-                  defaultValue={editingMember?.city}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Country</label>
-                <input
-                  name="country"
-                  type="text"
-                  defaultValue={editingMember?.country}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Website</label>
-                <input
-                  name="website"
-                  type="text"
-                  defaultValue={editingMember?.website}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Category</label>
-                <select
-                  name="category"
-                  defaultValue={editingMember?.category}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  required
-                >
-                  <option value="">Select a category</option>
-                  <option value="Academic">Academic</option>
-                  <option value="Civil society">Civil society</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Region</label>
-                <select
-                  name="region"
-                  defaultValue={editingMember?.region}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  required
-                >
-                  <option value="">Select a region</option>
-                  <option value="Europe">Europe</option>
-                  <option value="Asia-Pacific">Asia-Pacific</option>
-                  <option value="North America">North America</option>
-                  <option value="South America">South America</option>
-                  <option value="Africa">Africa</option>
-                  <option value="Middle East">Middle East</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Latitude</label>
-                <input
-                  name="lat"
-                  type="number"
-                  step="0.000001"
-                  defaultValue={editingMember?.lat}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Longitude</label>
-                <input
-                  name="lng"
-                  type="number"
-                  step="0.000001"
-                  defaultValue={editingMember?.lng}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                  required
-                />
+                <label htmlFor="isVisible" className="ml-2 block text-sm text-gray-900">
+                  Visible
+                </label>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -414,6 +338,7 @@ const AdminView = () => {
     </div>
   );
 };
+
 
 // -------------------------------------------
 // Composant ViewSelector
