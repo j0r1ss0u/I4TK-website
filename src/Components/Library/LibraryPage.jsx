@@ -10,6 +10,8 @@ import SubmitContribution from './components/SubmitContribution';
 import LibrarianSpace from './components/LibrarianSpace';
 import { documentsService } from '../../services/documentsService';
 import I4TKDashboard from './components/I4TDashboard';
+import GenealogyPage from './GenealogyPage';
+
 
 // =============== ROLE HASHES ===============
 const ROLE_HASHES = {
@@ -25,6 +27,7 @@ const TABS = {
   PEER_REVIEW: 'peer-review',
   LIBRARIAN_SPACE: 'librarian-space',
   I4T_AND_I: 'i4t-and-i',
+  GENEALOGY: 'genealogy', 
 };
 
 const LibraryPage = () => {
@@ -39,6 +42,7 @@ const LibraryPage = () => {
     isAdmin: false,
     isContributor: false
   });
+  const [selectedTokenId, setSelectedTokenId] = useState(null);
 
   // =============== HOOKS ===============
   const { address, isConnected } = useAccount({
@@ -235,16 +239,24 @@ const LibraryPage = () => {
 
               <div className="mt-8">
                 {(() => {
-                  switch (activeTab) {
-                    case TABS.SUBMIT_CONTRIBUTION:
-                      return web3Roles.isContributor && renderSubmitContributionTab();
-                    case TABS.I4T_AND_I:
-                      return isWebMember && renderI4TAndITab();
-                    case TABS.LIBRARIAN_SPACE:
-                      return web3Roles.isAdmin && renderLibrarianSpaceTab();
-                    default:
-                      return (
-                        <NetworkPublications
+      switch (activeTab) {
+        case TABS.SUBMIT_CONTRIBUTION:
+          return web3Roles.isContributor && renderSubmitContributionTab();
+        case TABS.I4T_AND_I:
+          return isWebMember && renderI4TAndITab();
+        case TABS.LIBRARIAN_SPACE:
+          return web3Roles.isAdmin && renderLibrarianSpaceTab();
+        case TABS.GENEALOGY:  // Ajoutez ce cas
+          return (
+            <GenealogyPage
+              tokenId={selectedTokenId}
+              onBack={() => setActiveTab(TABS.NETWORK_PUBLICATIONS)}
+              currentLang={'fr'}
+            />
+          );
+        default:
+          return (
+            <NetworkPublications
                           isWeb3Validator={web3Roles.isValidator}
                           isWeb3Admin={web3Roles.isAdmin}
                           isWebMember={isWebMember}
@@ -254,6 +266,8 @@ const LibraryPage = () => {
                           searchResults={searchResults}
                           isSearching={isSearching}
                           error={error}
+                          setCurrentPage={setActiveTab}     // Ajoutez ceci
+                          setSelectedTokenId={setSelectedTokenId}  // Ajoutez ceci
                         />
                       );
                   }

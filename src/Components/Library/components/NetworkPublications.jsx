@@ -1,7 +1,7 @@
 // =============== IMPORTS ===============
 import React, { useState, useEffect } from 'react';
 import { documentsService } from '../../../services/documentsService';
-import { AlertCircle, CheckCircle2, Clock, ExternalLink, ZoomIn, Download } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, ZoomIn, Download, GitFork } from 'lucide-react';
 import DocumentValidator from "./DocumentValidator";
 import DocumentViewer from './DocumentViewer';
 
@@ -21,13 +21,15 @@ const NetworkPublications = ({
   isWeb3Admin, 
   isWebMember, 
   isWebAdmin, 
-  address, 
-  networkContract,
+  address,
   searchTerm,
   searchResults,
   isSearching,
-  error: searchError
+  error: searchError,
+  setCurrentPage,
+  setSelectedTokenId
 }) => {
+  
   // =============== STATES ===============
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -170,6 +172,13 @@ const NetworkPublications = ({
     );
   }
 
+  const handleViewGenealogy = (doc) => {
+    if (doc && doc.tokenId) {
+      setCurrentPage("genealogy");
+      setSelectedTokenId(doc.tokenId);
+    }
+  };
+  
   // =============== MAIN RENDER ===============
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -211,6 +220,7 @@ const NetworkPublications = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-4">
+                   {/* Boutons voir le document */}
                   <button
                     onClick={() => handleViewDetails(doc)}
                     disabled={!doc.ipfsCid}
@@ -221,7 +231,20 @@ const NetworkPublications = ({
                     }`}
                   >
                     <ExternalLink className="w-4 h-4" />
-                    Voir le document
+                    Read content
+                  </button>
+                  {/* Nouveau bouton pour la généalogie */}
+                  <button
+                    onClick={() => handleViewGenealogy(doc)}
+                    disabled={!doc.tokenId}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                      doc.tokenId
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    <GitFork className="w-4 h-4" />
+                    Voir les citations
                   </button>
                 </div>
 

@@ -6,6 +6,7 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
 import { useAccount } from 'wagmi';
+import GenealogyPage from "./Components/Library/GenealogyPage";
 
 // Query Client
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -41,6 +42,7 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('preferredView') || 'cards');
   const { address } = useAccount();
+  const [selectedTokenId, setSelectedTokenId] = useState(null);
 
   // ===== Provider Check Effect =====
   useEffect(() => {
@@ -146,9 +148,23 @@ function AppContent() {
               initialView={localStorage.getItem('preferredView')}
             />
           )}
-          {currentPage === "library" && <LibraryPage currentLang={currentLang} />}
+          {currentPage === "library" && (
+            <LibraryPage 
+              currentLang={currentLang} 
+              setCurrentPage={setCurrentPage}
+              setSelectedTokenId={setSelectedTokenId}
+            />
+          )}
+          {/* Ajoutez cette section */}
+          {currentPage === "genealogy" && (
+            <GenealogyPage 
+              currentLang={currentLang}
+              tokenId={selectedTokenId}
+              onBack={() => setCurrentPage("library")}
+            />
+          )}
           {currentPage === "forum" && <ProtectedForumPage currentLang={currentLang} />}
-        </main>
+          </main>
       </div>
     </div>
   );

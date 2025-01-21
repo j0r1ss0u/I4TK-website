@@ -250,6 +250,40 @@ export const documentsService = {
     }
   },
 
+  // =============== GET DOCUMENT BY TOKEN ID ===============
+  // Récupère un document spécifique par son tokenId
+  async getDocumentByTokenId(tokenId) {
+    try {
+      console.log('=== Fetching Document by TokenId ===');
+      console.log('TokenId:', tokenId);
+
+      if (!tokenId) {
+        throw new Error('TokenId is required');
+      }
+
+      const documentsRef = collection(db, 'web3IP');
+      const q = query(documentsRef, where('tokenId', '==', tokenId));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        console.log('No document found with tokenId:', tokenId);
+        return null;
+      }
+
+      const docData = snapshot.docs[0].data();
+      return {
+        id: snapshot.docs[0].id,
+        ...docData,
+        validationStatus: docData.validationStatus || "PENDING"
+      };
+
+    } catch (error) {
+      console.error('❌ Error getting document by tokenId:', error);
+      throw error;
+    }
+  },
+
+  
   // =============== ADD COMMENT ===============
   // Ajoute un commentaire à un document
   async addComment(documentId, comment) {
