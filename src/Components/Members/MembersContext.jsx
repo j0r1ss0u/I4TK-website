@@ -1,40 +1,99 @@
+// MembersContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { MEMBERS_DATA } from "../../data/members";
+import { membersService } from "../../services/membersService";
 
 const MembersContext = createContext();
 
 export const MembersProvider = ({ children }) => {
-  const [members, setMembers] = useState(MEMBERS_DATA); // Initialisation directe avec MEMBERS_DATA
+  const [members, setMembers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    console.log("Nombre total de membres chargés:", members.length);
-
-    // Sauvegarder dans localStorage si nécessaire
-    try {
-      const savedMembers = localStorage.getItem('members');
-      if (!savedMembers) {
-        localStorage.setItem('members', JSON.stringify(MEMBERS_DATA));
-      }
-    } catch (error) {
-      console.error('Erreur avec localStorage:', error);
-    }
+    loadMembers();
   }, []);
 
-  const updateMembers = (newMembers) => {
-    console.log('Mise à jour des membres:', newMembers.length);
-    setMembers(newMembers);
+  const loadMembers = async () => {
     try {
-      localStorage.setItem('members', JSON.stringify(newMembers));
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
+      setIsLoading(true);
+      setError(null);
+      const data = await membersService.getAllMembers();
+      setMembers(data);
+    } catch (err) {
+      console.error('Error loading members:', err);
+      setError('Failed to load members. Please try again later.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Log de debug
-  console.log('Rendu du Provider avec', members.length, 'membres');
+  // Optimisation : mise à jour locale du state sans rechargement
+  const updateMember = async (numericId, memberData) => {
+    try {
+      setError(null);
+      const updatedMember = await membersService.updateMember(numericId, memberData);
+
+      // Mise à jour locale du state
+      setMembers(prevMembers => 
+        prevMembers.map(member => 
+          member.id === numericId 
+            ? { ...member, ...updatedMember }
+            : member
+        )
+      );
+
+      return updatedMember;
+    } catch (err) {
+      console.error('Error updating member:', err);
+      setError('Failed to update member. Please try again.');
+      throw err;
+    }
+  };
+
+  // Optimisation : mise à jour groupée
+  const updateMembers = async (updates) => {
+    try {
+      setError(null);
+
+      // Traiter toutes les mises à jour en parallèle
+      const updatePromises = updates.map(({ id, data }) => 
+        membersService.updateMember(id, data)
+      );
+
+      const updatedMembers = await Promise.all(updatePromises);
+
+      // Une seule mise à jour du state pour toutes les modifications
+      setMembers(prevMembers => {
+        const updatedMembersMap = new Map(
+          updatedMembers.map(member => [member.id, member])
+        );
+
+        return prevMembers.map(member => 
+          updatedMembersMap.has(member.id)
+            ? { ...member, ...updatedMembersMap.get(member.id) }
+            : member
+        );
+      });
+
+      return updatedMembers;
+    } catch (err) {
+      console.error('Error updating members:', err);
+      setError('Failed to update members. Please try again.');
+      throw err;
+    }
+  };
 
   return (
-    <MembersContext.Provider value={{ members, updateMembers }}>
+    <MembersContext.Provider 
+      value={{ 
+        members, 
+        updateMember,
+        updateMembers, // Nouvelle méthode pour les mises à jour groupées
+        reloadMembers: loadMembers,
+        isLoading, 
+        error 
+      }}
+    >
       {children}
     </MembersContext.Provider>
   );
@@ -43,12 +102,8 @@ export const MembersProvider = ({ children }) => {
 export const useMembers = () => {
   const context = useContext(MembersContext);
   if (!context) {
-    throw new Error("useMembers doit être utilisé à l'intérieur du MembersProvider");
+    throw new Error("useMembers must be used within MembersProvider");
   }
-
-  // Log de debug
-  console.log('useMembers appelé, nombre de membres:', context.members.length);
-
   return context;
 };
 

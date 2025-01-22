@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { MEMBERS_DATA } from '../../data/members';
+import { useMembers } from '../Members/MembersContext';
 import NewsComponent from './NewsComponent';
 import LibraryRAG from './LibraryRAG';
 
@@ -51,6 +51,7 @@ const HomePage = ({ currentLang, setCurrentPage, setActiveView }) => {
   // =========================================
   // State Management
   // =========================================
+  const { members } = useMembers();
   const [stats, setStats] = useState({
     totalMembers: 0,
     regionStats: {
@@ -88,7 +89,7 @@ const HomePage = ({ currentLang, setCurrentPage, setActiveView }) => {
     const fetchStats = async () => {
       try {
         // Members Statistics
-        const visibleMembers = MEMBERS_DATA.filter(member => member.isVisible);
+        const visibleMembers = members.filter(member => member.isVisible);
 
         // Regional Statistics
         const regionCounts = visibleMembers.reduce((acc, member) => {
@@ -145,7 +146,7 @@ const HomePage = ({ currentLang, setCurrentPage, setActiveView }) => {
     };
 
     fetchStats();
-  }, []);
+  }, [members]); // Ajout de la dépendance members
 
   // =========================================
   // Render

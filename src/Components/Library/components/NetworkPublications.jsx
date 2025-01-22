@@ -244,7 +244,7 @@ const NetworkPublications = ({
                     }`}
                   >
                     <GitFork className="w-4 h-4" />
-                    Voir les citations
+                    Genealogy feature in progress
                   </button>
                 </div>
 

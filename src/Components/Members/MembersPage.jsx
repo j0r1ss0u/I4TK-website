@@ -7,10 +7,10 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Building2, Mail, Edit, Trash2, Plus, X, Search, Users, Globe2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { useMembers } from './MembersContext';
+import { useMembers, MembersProvider } from './MembersContext'; // Ajout de MembersProvider
 import MapView from './MapView';
 import GovernanceView from './GovernanceView';
-
+import { membersService } from "../../services/membersService";
 
 // -------------------------------------------
 // Composant MemberCard
@@ -70,11 +70,6 @@ const CardsView = () => {
   const { members } = useMembers();
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    console.log("Données des membres:", members);
-    console.log("Nombre total de membres:", members.length);
-  }, [members]);
-
   const filteredMembers = members.filter(member => {
     if (!member) return false;
     const searchLower = searchTerm.toLowerCase();
@@ -118,55 +113,73 @@ const MapViewWrapper = () => <MapView />;
 
 // -------------------------------------------
 // Composant AdminView
-// Vue d'administration pour la gestion des membres
-// Accessible uniquement aux administrateurs
 // -------------------------------------------
 const AdminView = () => {
-  const { members, updateMembers } = useMembers();
+  const { 
+    members, 
+    updateMember,          // Pour les mises à jour individuelles
+    reloadMembers,         // Pour recharger après suppression
+    loading,
+    error 
+  } = useMembers();
+
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Handlers pour les actions CRUD
   const handleEdit = (member) => {
     setEditingMember(member);
     setShowForm(true);
   };
 
-  const handleDelete = (memberId) => {
+  const handleDelete = async (memberId) => {
     if (window.confirm('Are you sure you want to delete this member?')) {
-      const newMembers = members.filter(m => m.id !== memberId);
-      updateMembers(newMembers);
+      try {
+        await membersService.deleteMember(memberId);
+        // Après une suppression, on doit recharger la liste
+        await reloadMembers();
+      } catch (error) {
+        console.error('Error deleting member:', error);
+        // TODO: Ajouter une notification d'erreur UI
+      }
     }
   };
 
-  const handleVisibilityToggle = (memberId) => {
-    const newMembers = members.map(m => 
-      m.id === memberId ? { ...m, isVisible: !m.isVisible } : m
-    );
-    updateMembers(newMembers);
-  };
+  const handleVisibilityToggle = async (memberId) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
 
-  const handleSubmit = (formData) => {
-    let newMembers;
-    if (editingMember) {
-      newMembers = members.map(m => 
-        m.id === editingMember.id ? { ...formData, id: m.id } : m
-      );
-    } else {
-      const newMember = {
-        ...formData,
-        id: Date.now(),
-        isVisible: true
-      };
-      newMembers = [...members, newMember];
+    try {
+      await updateMember(memberId, {
+        ...member,
+        isVisible: !member.isVisible
+      });
+      // Plus besoin de recharger la liste, le state est mis à jour automatiquement
+    } catch (error) {
+      console.error('Error updating visibility:', error);
+      // TODO: Ajouter une notification d'erreur UI
     }
-    updateMembers(newMembers);
-    setShowForm(false);
-    setEditingMember(null);
   };
 
-  // Filtrage des membres
+  const handleSubmit = async (formData) => {
+    try {
+      if (editingMember) {
+        // Mise à jour d'un membre existant
+        await updateMember(editingMember.id, formData);
+      } else {
+        // Création d'un nouveau membre
+        const newMember = await membersService.addMember(formData);
+        // Recharger la liste pour inclure le nouveau membre
+        await reloadMembers();
+      }
+
+      setShowForm(false);
+      setEditingMember(null);
+    } catch (error) {
+      console.error('Error saving member:', error);
+      // TODO: Ajouter une notification d'erreur UI
+    }
+  };
   const filteredMembers = members.filter(member => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -179,7 +192,6 @@ const AdminView = () => {
 
   return (
     <div className="w-full">
-      {/* Barre d'actions */}
       <div className="mb-6 flex justify-between items-center">
         <div className="relative flex-1 max-w-md">
           <input
@@ -191,16 +203,17 @@ const AdminView = () => {
           />
           <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="ml-4 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Member
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Member
+          </button>
+        </div>
       </div>
 
-      {/* Table des membres */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -266,7 +279,6 @@ const AdminView = () => {
         </div>
       </div>
 
-      {/* Modal de formulaire */}
       {showForm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
           <div className="bg-white rounded-lg p-6 max-w-md w-full m-4">
@@ -298,7 +310,114 @@ const AdminView = () => {
               };
               handleSubmit(formData);
             }} className="space-y-4">
-              {/* ... (autres champs du formulaire inchangés) ... */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <input
+                  name="name"
+                  type="text"
+                  defaultValue={editingMember?.name}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                <input
+                  name="fullName"
+                  type="text"
+                  defaultValue={editingMember?.fullName}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">City</label>
+                <input
+                  name="city"
+                  type="text"
+                  defaultValue={editingMember?.city}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Country</label>
+                <input
+                  name="country"
+                  type="text"
+                  defaultValue={editingMember?.country}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Website</label>
+                <input
+                  name="website"
+                  type="text"
+                  defaultValue={editingMember?.website}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Category</label>
+                <select
+                  name="category"
+                  defaultValue={editingMember?.category || ""}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  required
+                >
+                  <option value="" disabled>Select a category</option>
+                  <option value="Academic">Academic</option>
+                  <option value="Civil society">Civil society</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Region</label>
+                <select
+                  name="region"
+                  defaultValue={editingMember?.region || ""}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  required
+                >
+                  <option value="" disabled>Select a region</option>
+                  <option value="Europe">Europe</option>
+                  <option value="Asia-Pacific">Asia-Pacific</option>
+                  <option value="North America">North America</option>
+                  <option value="South America">South America</option>
+                  <option value="Africa">Africa</option>
+                  <option value="Middle East">Middle East</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Latitude</label>
+                <input
+                  name="lat"
+                  type="number"
+                  step="0.000001"
+                  defaultValue={editingMember?.lat}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Longitude</label>
+                <input
+                  name="lng"
+                  type="number"
+                  step="0.000001"
+                  defaultValue={editingMember?.lng}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  required
+                />
+              </div>
 
               <div className="flex items-center">
                 <input
@@ -338,7 +457,6 @@ const AdminView = () => {
     </div>
   );
 };
-
 
 // -------------------------------------------
 // Composant ViewSelector
@@ -384,22 +502,24 @@ const ViewSelector = ({ viewMode, setViewMode, userRole }) => {
 // -------------------------------------------
 // Composant principal MembersPageWrapper
 // -------------------------------------------
-const MembersPageWrapper = ({ initialView }) => {  // Ajout de initialView dans les props
+const MembersPageWrapper = ({ initialView }) => {
   const { user } = useAuth();
-  const [viewMode, setViewMode] = useState(initialView || 'cards');  // Utilisation de initialView
+  const [viewMode, setViewMode] = useState(initialView || 'cards');
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-serif font-bold text-gray-900">Network Members</h1>
-        <ViewSelector viewMode={viewMode} setViewMode={setViewMode} userRole={user?.role} />
-      </div>
+    <MembersProvider>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-serif font-bold text-gray-900">Network Members</h1>
+          <ViewSelector viewMode={viewMode} setViewMode={setViewMode} userRole={user?.role} />
+        </div>
 
-      {viewMode === 'cards' && <CardsView />}
-      {viewMode === 'map' && <MapViewWrapper />}
-      {viewMode === 'table' && user?.role === 'admin' && <AdminView />}
-      {viewMode === 'governance' && (user?.role === 'admin' || user?.role === 'member') && <GovernanceView />}
-    </div>
+        {viewMode === 'cards' && <CardsView />}
+        {viewMode === 'map' && <MapViewWrapper />}
+        {viewMode === 'table' && user?.role === 'admin' && <AdminView />}
+        {viewMode === 'governance' && (user?.role === 'admin' || user?.role === 'member') && <GovernanceView />}
+      </div>
+    </MembersProvider>
   );
 };
 
@@ -410,7 +530,7 @@ const components = {
   CardsView,
   MapViewWrapper,
   AdminView,
-  MembersPageWrapper: ({ currentLang, initialView }) => (  // Ajout de initialView ici aussi
+  MembersPageWrapper: ({ currentLang, initialView }) => (
     <MembersPageWrapper currentLang={currentLang} initialView={initialView} />
   )
 };

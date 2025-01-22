@@ -7,10 +7,11 @@ import L from 'leaflet';
 
 const MapView = () => {
   const [isClient, setIsClient] = useState(false);
-  const { members } = useMembers(); // Utilisation du contexte au lieu de MEMBERS_DATA
+  const { members } = useMembers();
 
   useEffect(() => {
     setIsClient(true);
+
     // Fix des icônes Leaflet
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
@@ -19,6 +20,27 @@ const MapView = () => {
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
     });
   }, []);
+
+  // Filtrer les membres visibles et avec des coordonnées valides
+  const validMembers = members.filter(member => {
+    // Vérifier d'abord la visibilité
+    if (!member.isVisible) {
+      return false;
+    }
+
+    // Ensuite vérifier les coordonnées
+    const hasValidCoords = 
+      typeof member.lat === 'number' && 
+      typeof member.lng === 'number' &&
+      !isNaN(member.lat) && 
+      !isNaN(member.lng);
+
+    if (!hasValidCoords) {
+      console.warn(`Membre visible sans coordonnées valides:`, member);
+    }
+
+    return hasValidCoords;
+  });
 
   if (!isClient) {
     return (
@@ -30,11 +52,32 @@ const MapView = () => {
     );
   }
 
+  // Message si aucun membre visible n'a de coordonnées valides
+  if (validMembers.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="h-[600px] bg-gray-100 rounded-lg flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-500 mb-2">Aucune donnée de localisation disponible</p>
+            <p className="text-sm text-gray-400">
+              {members.filter(m => m.isVisible).length} membres visibles, 
+              {validMembers.length} avec des coordonnées valides
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculer le centre de la carte en fonction des membres visibles
+  const bounds = L.latLngBounds(validMembers.map(m => [m.lat, m.lng]));
+  const center = bounds.getCenter();
+
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div style={{ height: '600px', width: '100%' }}>
         <MapContainer
-          center={[48.8566, 2.3522]} // Paris coordinates
+          center={[center.lat, center.lng]}
           zoom={2}
           style={{ height: '100%', width: '100%' }}
         >
@@ -42,7 +85,7 @@ const MapView = () => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
-          {members.map((member) => (
+          {validMembers.map((member) => (
             <Marker 
               key={member.id}
               position={[member.lat, member.lng]}

@@ -251,6 +251,7 @@ export default function LibrarianSpace() {
 
         {/* Form */}
         <form className="space-y-4">
+          
           {/* Member Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -260,22 +261,28 @@ export default function LibrarianSpace() {
               className="w-full border rounded p-2 bg-white"
               value={formData.memberId}
               onChange={(e) => {
-                const selectedMember = members.find(m => m.id === Number(e.target.value));
-                setFormData({
-                  ...formData,
-                  memberId: e.target.value,
-                  memberName: selectedMember?.name || '',
-                  category: selectedMember?.category || '',
-                  country: selectedMember?.country || ''
-                });
+                const selectedMember = members.find(m => m.id === parseInt(e.target.value));
+                if (selectedMember) {
+                  setFormData({
+                    ...formData,
+                    memberId: selectedMember.id.toString(),
+                    memberName: selectedMember.name,
+                    category: selectedMember.category,
+                    country: selectedMember.country
+                  });
+                }
               }}
               required
             >
               <option value="">Select a member organisation</option>
               {members
-                .filter(m => m.isVisible)
+                .filter(member => member.isVisible) // Ne montrer que les membres visibles
+                .sort((a, b) => a.name.localeCompare(b.name)) // Tri alphabétique
                 .map(member => (
-                  <option key={member.id} value={member.id}>
+                  <option 
+                    key={member.firestoreId || member.id} 
+                    value={member.id}
+                  >
                     {member.name} ({member.category} - {member.country})
                   </option>
                 ))}

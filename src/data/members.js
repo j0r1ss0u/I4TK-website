@@ -21,7 +21,7 @@ export const MEMBERS_DATA = [
     website: "amic.asia",
     category: "Research Center",
     region: "Asia",
-    isVisible: true,
+    isVisible: false,
     lat: 14.5995,
     lng: 120.9842,
     logo: null
@@ -34,7 +34,7 @@ export const MEMBERS_DATA = [
     website: "cyber.harvard.edu",
     category: "Research Center",
     region: "North America", 
-    isVisible: true,
+    isVisible: false,
     lat: 42.3736,
     lng: -71.1097,
     logo: null
@@ -125,7 +125,7 @@ export const MEMBERS_DATA = [
     website: "itsrio.org",
     category: "Academic",
     region: "South America",
-    isVisible: true,
+    isVisible: false,
     lat: -22.9068,
     lng: -43.1729,
     logo: null
@@ -138,7 +138,7 @@ export const MEMBERS_DATA = [
     website: "www.ipi.si",
     category: "Academic",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 46.0569,
     lng: 14.5058,
     logo: null
@@ -242,7 +242,7 @@ export const MEMBERS_DATA = [
     website: "www.ntu.edu.sg/sirc",
     category: "Research Center",
     region: "Asia",
-    isVisible: true,
+    isVisible: false,
     lat: 1.3521,
     lng: 103.8198,
     logo: null
@@ -255,7 +255,7 @@ export const MEMBERS_DATA = [
     website: "www.sussex.ac.uk",
     category: "Research Center",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 50.8618,
     lng: 0.0878,
     logo: null
@@ -281,7 +281,7 @@ export const MEMBERS_DATA = [
     website: "tesaco.cyu.fr",
     category: "Research Center",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 48.8566,
     lng: 2.3522,
     logo: null
@@ -294,7 +294,7 @@ export const MEMBERS_DATA = [
     website: "globalnetworkinitiative.org",
     category: "NGO",
     region: "North America",
-    isVisible: true,
+    isVisible: false,
     lat: 38.9072,
     lng: -77.0369,
     logo: null
@@ -320,7 +320,7 @@ export const MEMBERS_DATA = [
     website: "www.palermo.edu/cele",
     category: "Research Center",
     region: "South America",
-    isVisible: true,
+    isVisible: false,
     lat: -34.6037,
     lng: -58.3816,
     logo: null
@@ -346,7 +346,7 @@ export const MEMBERS_DATA = [
     website: "desinformante.com.br",
     category: "Media",
     region: "South America",
-    isVisible: true,
+    isVisible: false,
     lat: -23.5505,
     lng: -46.6333,
     logo: null
@@ -359,7 +359,7 @@ export const MEMBERS_DATA = [
     website: "www.dlsu.edu.ph",
     category: "Academic",
     region: "Asia",
-    isVisible: true,
+    isVisible: false,
     lat: 14.5995,
     lng: 120.9842,
     logo: null
@@ -385,7 +385,7 @@ export const MEMBERS_DATA = [
     website: "fma.ph",
     category: "NGO",
     region: "Asia",
-    isVisible: true,
+    isVisible: false,
     lat: 14.6760,
     lng: 121.0437,
     logo: null
@@ -437,7 +437,7 @@ export const MEMBERS_DATA = [
     website: "iite.unesco.org",
     category: "International Organization",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 55.7558,
     lng: 37.6173,
     logo: null
@@ -450,7 +450,7 @@ export const MEMBERS_DATA = [
     website: "integrityinstitute.org",
     category: "Think tank",
     region: "North America",
-    isVisible: true,
+    isVisible: false,
     lat: 38.9072,
     lng: -77.0369,
     logo: null
@@ -541,7 +541,7 @@ export const MEMBERS_DATA = [
     website: "counterhate.com",
     category: "NGO",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 51.5074,
     lng: -0.1278,
     logo: null
@@ -554,7 +554,7 @@ export const MEMBERS_DATA = [
     website: "adisi-cameroun.org",
     category: "NGO",
     region: "Africa",
-    isVisible: true,
+    isVisible: false,
     lat: 4.0511,
     lng: 9.7679,
     logo: null
@@ -567,7 +567,7 @@ export const MEMBERS_DATA = [
     website: "iiega.org",
     category: "Research Center",
     region: "Africa",
-    isVisible: true,
+    isVisible: false,
     lat: -26.2041,
     lng: 28.0473,
     logo: null
@@ -580,7 +580,7 @@ export const MEMBERS_DATA = [
     website: "i4ada.org",
     category: "Think tank",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 52.0705,
     lng: 4.3007,
     logo: null
@@ -697,7 +697,7 @@ export const MEMBERS_DATA = [
     website: "www.auth.gr",
     category: "Academic",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 40.6401,
     lng: 22.9444,
     logo: null
@@ -710,7 +710,7 @@ export const MEMBERS_DATA = [
     website: "dcnglobal.com",
     category: "Company",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 40.6401,
     lng: 22.9444,
     logo: null
@@ -749,7 +749,7 @@ export const MEMBERS_DATA = [
     website: "birn.eu.com",
     category: "Media",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 43.8563,
     lng: 18.4131,
     logo: null
@@ -762,7 +762,7 @@ export const MEMBERS_DATA = [
     website: "africandigitalrightsnetwork.org",
     category: "Research Center",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 50.8225,
     lng: -0.1372,
     logo: null
@@ -775,7 +775,7 @@ export const MEMBERS_DATA = [
     website: "mminstitute.org",
     category: "Academic",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 42.4416,
     lng: 19.2662,
     logo: null
@@ -788,7 +788,7 @@ export const MEMBERS_DATA = [
     website: "",
     category: "",
     region: "",
-    isVisible: false,
+    isVisible: true,
     lat: 0,
     lng: 0,
     logo: null
@@ -827,7 +827,7 @@ export const MEMBERS_DATA = [
     website: "www.crca.al",
     category: "NGO",
     region: "Europe",
-    isVisible: true,
+    isVisible: false,
     lat: 41.3275,
     lng: 19.8187,
     logo: null
