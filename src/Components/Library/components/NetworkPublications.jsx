@@ -110,17 +110,17 @@ const NetworkPublications = ({
       [ValidationStatus.PENDING]: {
         color: "bg-yellow-100 text-yellow-800",
         icon: Clock,
-        text: "En attente"
+        text: "Pending"
       },
       [ValidationStatus.PUBLISHED]: {
         color: "bg-green-100 text-green-800",
         icon: CheckCircle2,
-        text: "Publié"
+        text: "Published"
       },
       [ValidationStatus.FAILED]: {
         color: "bg-red-100 text-red-800",
         icon: AlertCircle,
-        text: "Échec"
+        text: "Failed"
       }
     };
 
@@ -164,9 +164,9 @@ const NetworkPublications = ({
   if (!displayedDocuments || displayedDocuments.length === 0) {
     return (
       <div className="text-center py-12">
-        <h3 className="text-lg font-medium text-gray-900">Aucun document trouvé</h3>
+        <h3 className="text-lg font-medium text-gray-900">No document found</h3>
         <p className="mt-2 text-sm text-gray-500">
-          {searchTerm ? "Aucun résultat pour cette recherche." : "Les documents apparaîtront ici une fois soumis."}
+          {searchTerm ? "No result for this search." : "Les documents apparaîtront ici une fois soumis."}
         </p>
       </div>
     );

@@ -93,7 +93,7 @@ export const LoginForm = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Mot de passe</label>
+          <label className="block text-sm font-medium text-gray-700">Password</label>
           <input
             type="password"
             value={password}
@@ -115,13 +115,13 @@ export const LoginForm = () => {
           ) : (
             <>
               <LogIn className="h-5 w-5 mr-2" />
-              Se connecter
+              Connect
             </>
           )}
         </button>
       </form>
       <div className="mt-6 text-sm text-gray-600 space-y-1">
-        <p className="text-center font-semibold">Comptes de démonstration :</p>
+        <p className="text-center font-semibold">demonstration account :</p>
         <p className="text-center">Admin </p>
         <p className="text-center">Membre</p>
       </div>
@@ -146,7 +146,7 @@ export const UserProfile = () => {
         className="flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
       >
         <LogOut className="h-4 w-4 mr-1" />
-        Déconnexion
+        Deconnexion
       </button>
     </div>
   );

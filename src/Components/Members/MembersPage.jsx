@@ -371,17 +371,17 @@ const AdminView = () => {
 // Gère la sélection des différentes vues
 // -------------------------------------------
 const ViewSelector = ({ viewMode, setViewMode, userRole }) => (
-  <div className="flex gap-4">
+  <div className="flex flex-wrap gap-2">
     <button
       onClick={() => setViewMode('members')}
-      className={`px-3 py-2 rounded ${viewMode === 'members' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+      className={`w-full sm:w-auto px-3 py-2 rounded ${viewMode === 'members' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
     >
       Members
     </button>
     {userRole === 'admin' && (
       <button
         onClick={() => setViewMode('table')}
-        className={`px-3 py-2 rounded ${viewMode === 'table' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+        className={`w-full sm:w-auto px-3 py-2 rounded ${viewMode === 'table' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
       >
         Admin View
       </button>
@@ -389,7 +389,7 @@ const ViewSelector = ({ viewMode, setViewMode, userRole }) => (
     {(userRole === 'admin' || userRole === 'member') && (
       <button
         onClick={() => setViewMode('governance')}
-        className={`px-3 py-2 rounded ${viewMode === 'governance' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+        className={`w-full sm:w-auto px-3 py-2 rounded ${viewMode === 'governance' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
       >
         Governance
       </button>
