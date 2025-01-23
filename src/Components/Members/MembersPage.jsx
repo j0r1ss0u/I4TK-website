@@ -12,98 +12,6 @@ import MapView from './MapView';
 import GovernanceView from './GovernanceView';
 import { membersService } from "../../services/membersService";
 
-// -------------------------------------------
-// Composant MemberCard
-// Carte individuelle affichant les informations d'un membre
-// -------------------------------------------
-const MemberCard = ({ member }) => (
-  <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
-    <div className="flex items-start justify-between">
-      <div className="flex-1">
-        <h3 className="text-lg font-medium text-gray-900">
-          {member.name}
-          {member.fullName && (
-            <span className="block text-sm text-gray-500 mt-1">
-              {member.fullName}
-            </span>
-          )}
-        </h3>
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center text-sm text-gray-500">
-            <MapPin className="h-4 w-4 mr-1" />
-            <span>{member.city}, {member.country}</span>
-          </div>
-          <div className="flex items-center text-sm text-gray-500">
-            <Users className="h-4 w-4 mr-1" />
-            <span>{member.category}</span>
-          </div>
-          {member.website && (
-            <div className="flex items-center text-sm text-blue-500 hover:text-blue-600">
-              <Globe2 className="h-4 w-4 mr-1" />
-              <a href={`https://${member.website}`} target="_blank" rel="noopener noreferrer">
-                {member.website}
-              </a>
-            </div>
-          )}
-        </div>
-      </div>
-      {member.logo ? (
-        <img 
-          src={member.logo} 
-          alt={member.name} 
-          className="h-16 w-16 rounded-full object-cover"
-        />
-      ) : (
-        <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center">
-          <Building2 className="h-8 w-8 text-gray-400" />
-        </div>
-      )}
-    </div>
-  </div>
-);
-
-// -------------------------------------------
-// Composant CardsView
-// Vue principale affichant la liste des membres sous forme de cartes
-// -------------------------------------------
-const CardsView = () => {
-  const { members } = useMembers();
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const filteredMembers = members.filter(member => {
-    if (!member) return false;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      member.name?.toLowerCase().includes(searchLower) ||
-      member.fullName?.toLowerCase().includes(searchLower) ||
-      member.city?.toLowerCase().includes(searchLower) ||
-      member.country?.toLowerCase().includes(searchLower) ||
-      member.category?.toLowerCase().includes(searchLower)
-    );
-  });
-
-  return (
-    <div>
-      <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search by name, location, or category..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md"
-          />
-          <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredMembers.map((member) => (
-          <MemberCard key={member.id} member={member} />
-        ))}
-      </div>
-    </div>
-  );
-};
 
 // -------------------------------------------
 // Composant MapViewWrapper
@@ -462,49 +370,40 @@ const AdminView = () => {
 // Composant ViewSelector
 // Gère la sélection des différentes vues
 // -------------------------------------------
-const ViewSelector = ({ viewMode, setViewMode, userRole }) => {
-  const showGovernance = userRole === 'admin' || userRole === 'member';
+const ViewSelector = ({ viewMode, setViewMode, userRole }) => (
+  <div className="flex gap-4">
+    <button
+      onClick={() => setViewMode('members')}
+      className={`px-3 py-2 rounded ${viewMode === 'members' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+    >
+      Members
+    </button>
+    {userRole === 'admin' && (
+      <button
+        onClick={() => setViewMode('table')}
+        className={`px-3 py-2 rounded ${viewMode === 'table' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+      >
+        Admin View
+      </button>
+    )}
+    {(userRole === 'admin' || userRole === 'member') && (
+      <button
+        onClick={() => setViewMode('governance')}
+        className={`px-3 py-2 rounded ${viewMode === 'governance' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
+      >
+        Governance
+      </button>
+    )}
+  </div>
+);
 
-  return (
-    <div className="flex gap-4">
-      <button
-        onClick={() => setViewMode('cards')}
-        className={`px-3 py-2 rounded ${viewMode === 'cards' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
-      >
-        Members Details
-      </button>
-      <button
-        onClick={() => setViewMode('map')}
-        className={`px-3 py-2 rounded ${viewMode === 'map' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
-      >
-        Map View
-      </button>
-      {userRole === 'admin' && (
-        <button
-          onClick={() => setViewMode('table')}
-          className={`px-3 py-2 rounded ${viewMode === 'table' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
-        >
-          Admin View
-        </button>
-      )}
-      {showGovernance && (
-        <button
-          onClick={() => setViewMode('governance')}
-          className={`px-3 py-2 rounded ${viewMode === 'governance' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
-        >
-          Governance
-        </button>
-      )}
-    </div>
-  );
-};
 
 // -------------------------------------------
 // Composant principal MembersPageWrapper
 // -------------------------------------------
 const MembersPageWrapper = ({ initialView }) => {
   const { user } = useAuth();
-  const [viewMode, setViewMode] = useState(initialView || 'cards');
+  const [viewMode, setViewMode] = useState(initialView || 'members');
 
   return (
     <MembersProvider>
@@ -514,8 +413,7 @@ const MembersPageWrapper = ({ initialView }) => {
           <ViewSelector viewMode={viewMode} setViewMode={setViewMode} userRole={user?.role} />
         </div>
 
-        {viewMode === 'cards' && <CardsView />}
-        {viewMode === 'map' && <MapViewWrapper />}
+        {viewMode === 'members' && <MapView />}
         {viewMode === 'table' && user?.role === 'admin' && <AdminView />}
         {viewMode === 'governance' && (user?.role === 'admin' || user?.role === 'member') && <GovernanceView />}
       </div>
@@ -527,8 +425,7 @@ const MembersPageWrapper = ({ initialView }) => {
 // Export des composants
 // -------------------------------------------
 const components = {
-  CardsView,
-  MapViewWrapper,
+  MapView,
   AdminView,
   MembersPageWrapper: ({ currentLang, initialView }) => (
     <MembersPageWrapper currentLang={currentLang} initialView={initialView} />

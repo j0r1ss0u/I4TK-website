@@ -14,7 +14,6 @@ import {
   limit
 } from 'firebase/firestore';
 
-import { MEMBERS_DATA } from "../data/members";
 
 // =============== MEMBERS MANAGEMENT SERVICE ===============
 export const membersService = {
