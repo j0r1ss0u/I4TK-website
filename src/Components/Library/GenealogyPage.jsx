@@ -81,7 +81,7 @@ const GenealogyPage = ({ tokenId, onBack, currentLang }) => {
               <GitFork className="w-6 h-6 text-gray-500" />
               <div>
                 <h1 className="text-2xl font-serif">
-                  {currentLang === 'fr' ? 'Network de citations' : 'Citation Network'}
+                  {currentLang === 'en' ? 'Arbre de citations' : 'Citation tree'}
                 </h1>
                 {documentTitle && (
                   <p className="text-sm text-gray-500 mt-1">
@@ -95,7 +95,7 @@ const GenealogyPage = ({ tokenId, onBack, currentLang }) => {
               className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              {currentLang === 'fr' ? 'Retour à la bibliothèque' : 'Back to Library'}
+              {currentLang === 'en' ? 'Retour à la bibliothèque' : 'Back to Library'}
             </button>
           </div>
         </div>

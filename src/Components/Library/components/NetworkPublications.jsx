@@ -244,7 +244,7 @@ const NetworkPublications = ({
                     }`}
                   >
                     <GitFork className="w-4 h-4" />
-                    Genealogy feature in progress
+                    Document Genealogy
                   </button>
                 </div>
 

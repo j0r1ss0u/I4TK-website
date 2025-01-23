@@ -8,6 +8,7 @@ import { Info } from 'lucide-react';
 import { contractConfig } from '../../../config/wagmiConfig';
 import { documentsService } from '../../../services/documentsService';
 import { I4TKTokenAddress, I4TKTokenABI } from '../../../constants';
+import DocumentViewer from './DocumentViewer';
 
 // =================================================================================
 // 2. MAIN COMPONENT
@@ -126,7 +127,8 @@ const DocumentGenealogy = ({ tokenId }) => {
             tokenId: tokenId,
             author: docData.authors || docData.author,
             description: docData.description,
-            citations: docData.references ? docData.references.split(',').map(ref => ref.trim()) : []
+            citations: docData.references ? docData.references.split(',').map(ref => ref.trim()) : [],
+            ipfsCid: docData.ipfsCid
           }
         });
       }
@@ -204,7 +206,7 @@ const DocumentGenealogy = ({ tokenId }) => {
       <div className="lg:col-span-1">
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200 p-4">
-            <h2 className="text-xl font-medium">Détails du document</h2>
+            <h2 className="text-xl font-medium">Document details</h2>
           </div>
           <div className="p-4">
             {selectedNode ? (
@@ -215,7 +217,7 @@ const DocumentGenealogy = ({ tokenId }) => {
                 </div>
                 {selectedNode.attributes.author && (
                   <div>
-                    <h4 className="font-semibold text-sm text-gray-700">Auteur</h4>
+                    <h4 className="font-semibold text-sm text-gray-700">Author</h4>
                     <p className="text-sm">{selectedNode.attributes.author}</p>
                   </div>
                 )}
@@ -234,13 +236,16 @@ const DocumentGenealogy = ({ tokenId }) => {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-gray-500">Aucune citation</p>
+                    <p className="text-sm text-gray-500">No citation</p>
                   )}
                 </div>
+                {selectedNode.attributes.ipfsCid && (
+                  <DocumentViewer documentCid={selectedNode.attributes.ipfsCid} />
+                )}
               </div>
             ) : (
               <p className="text-gray-500">
-                Sélectionnez un document pour voir les détails
+                Select a document to check details
               </p>
             )}
           </div>
