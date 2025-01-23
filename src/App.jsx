@@ -6,7 +6,6 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
 import { useAccount } from 'wagmi';
-import GenealogyPage from "./Components/Library/GenealogyPage";
 
 // Query Client
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,6 +15,7 @@ import { config, chains } from './config/wagmiConfig';
 import { AuthProvider } from "./Components/AuthContext";
 import { MembersProvider } from './Components/Members/MembersContext';
 import { testFirebaseConnection } from "./services/firebase";
+import { useAuth } from "./Components/AuthContext";
 
 // Components
 import Header from './Components/Header';
@@ -24,6 +24,9 @@ import AboutPage from './Components/About/AboutPage';
 import MembersPage from "./Components/Members/MembersPage";
 import LibraryPage from "./Components/Library/LibraryPage";
 import { ProtectedForumPage } from "./Components/Forum/ForumPage";
+import GenealogyPage from "./Components/Library/GenealogyPage";
+import LibraryChat from "./Components/Library/LibraryChat";
+
 
 // ================ QUERY CLIENT CONFIGURATION ================
 const queryClient = new QueryClient({
@@ -37,6 +40,7 @@ const queryClient = new QueryClient({
 // ================ APP CONTENT COMPONENT ================
 function AppContent() {
   // ===== State Management =====
+  const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState("home");
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
@@ -142,6 +146,9 @@ function AppContent() {
             />
           )}
           {currentPage === "about" && <AboutPage currentLang={currentLang} />}
+          {currentPage === "chat" && user?.role === "admin" && (
+            <LibraryChat currentLang={currentLang} />
+          )}
           {currentPage === "members" && (
             <MembersPage.MembersPageWrapper 
               currentLang={currentLang}

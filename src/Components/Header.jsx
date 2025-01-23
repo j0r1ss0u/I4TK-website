@@ -3,6 +3,7 @@ import { useAuth, UserProfile, LoginForm } from './AuthContext';
 import WalletConnect from './Library/WalletConnect';
 import { LogIn, Menu, X } from 'lucide-react';
 
+// =============== LOGIN BUTTON COMPONENT ===============
 const LoginButton = () => {
   const [showLoginForm, setShowLoginForm] = useState(false);
   return (
@@ -31,6 +32,7 @@ const LoginButton = () => {
   );
 };
 
+// =============== NAVIGATION COMPONENT ===============
 const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) => {
   const { user } = useAuth();
   const navItems = [
@@ -38,11 +40,14 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
     { id: "about", label: "About", public: true },
     { id: "members", label: "Members", public: true },
     { id: "library", label: "Library", public: true },
-    { id: "forum", label: "Forum", requiresAuth: true }
+    { id: "forum", label: "Forum", requiresAuth: true },
+    { id: "chat", label: "AI Chat", adminOnly: true }
   ];
 
   const visibleItems = navItems.filter(item => 
-    item.public || (user && item.requiresAuth)
+    item.public || 
+    (user && item.requiresAuth) || 
+    (user?.role === 'admin' && item.adminOnly)
   );
 
   const handleNavClick = (itemId) => {
@@ -83,6 +88,7 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
   );
 };
 
+// =============== HEADER COMPONENT ===============
 const Header = ({ currentPage, setCurrentPage, currentLang }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -104,7 +110,6 @@ const Header = ({ currentPage, setCurrentPage, currentLang }) => {
               </button>
             </div>
 
-            {/* Menu pour desktop */}
             <div className="hidden md:block">
               <Navigation 
                 currentPage={currentPage} 
@@ -113,7 +118,6 @@ const Header = ({ currentPage, setCurrentPage, currentLang }) => {
               />
             </div>
 
-            {/* Bouton menu hamburger pour mobile */}
             <button
               className="md:hidden p-2"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -127,7 +131,6 @@ const Header = ({ currentPage, setCurrentPage, currentLang }) => {
             </button>
           </div>
 
-          {/* Menu mobile */}
           {isMenuOpen && (
             <div className="md:hidden w-full mt-4">
               <Navigation 
