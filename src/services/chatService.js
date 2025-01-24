@@ -109,9 +109,16 @@ Programme: ${doc.metadata.programme}`)
 
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: message }],
+        messages: [
+          {
+            role: "user",
+            content: `Question: ${message}\n\nAvailable sources:\n${relevantDocs.map(doc => 
+              `- ${doc.metadata.title} (${doc.metadata.authors?.join(', ')}): ${doc.content}`
+            ).join('\n')}\n\nPlease answer using these sources and cite them in your response.`
+          }
+        ],
         temperature: 0.7,
-        max_tokens: 500
+        max_tokens: 800
       });
 
       console.log(`Chat request completed in ${Date.now() - startTime}ms`);

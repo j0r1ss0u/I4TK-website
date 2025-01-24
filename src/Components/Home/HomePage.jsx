@@ -169,7 +169,7 @@ const HomePage = ({ currentLang, setCurrentPage, setActiveView }) => {
       {/* Library Section */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-4">
         <div className="p-2">
-          {user?.role === 'admin' || user?.role === 'member' ? (
+          {user?.role === 'admin' || user?.role === 'admin' ? (
             <LibraryChat currentLang={currentLang} />
           ) : (
             <LibraryRAG currentLang={currentLang} />
