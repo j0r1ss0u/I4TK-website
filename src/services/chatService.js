@@ -1,140 +1,162 @@
 // ================ IMPORTS ================
 import { db } from './firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, where, query } from 'firebase/firestore';
 import OpenAI from 'openai';
 import axios from 'axios';
+import { embeddingService } from './embeddingService';
 
 // ================ CONSTANTS ================
 const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const SIMILARITY_THRESHOLD = 0.1;
+const MAX_RESULTS = 3;
 
 // ================ CHAT SERVICE CLASS ================
 class ChatService {
   // ===== INITIALIZATION =====
   constructor() {
-    console.log('Initializing OpenAI client...');
     this.openai = new OpenAI({
       apiKey: import.meta.env.VITE_OPENAI_API_KEY,
       dangerouslyAllowBrowser: true
     });
-    console.log('OpenAI client initialized with API key length:', import.meta.env.VITE_OPENAI_API_KEY?.length);
   }
 
   // ===== IPFS OPERATIONS =====
-  async fetchIPFSContent(ipfsHash) {
-    console.log('Fetching IPFS content:', ipfsHash);
-    const response = await axios.get(`${IPFS_GATEWAY}${ipfsHash}`);
-    return response.data;
+  async fetchIPFSContent(ipfsCid) {
+    try {
+      let cid = ipfsCid.replace('ipfs://', '').trim();
+      if (!cid.match(/^[a-zA-Z0-9]{46,62}$/)) return null;
+      console.log('📥 Fetching IPFS:', cid);
+      const response = await axios.get(`${IPFS_GATEWAY}${cid}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ IPFS error:', error);
+      return null;
+    }
   }
 
-  // ===== EMBEDDING OPERATIONS =====
-  async getEmbedding(text) {
-    console.log('Starting embedding request...');
-    const startTime = Date.now();
-    try {
-      const response = await this.openai.embeddings.create({
-        model: "text-embedding-ada-002",
-        input: text,
-      });
-      console.log(`Embedding request completed in ${Date.now() - startTime}ms`);
-      return response.data[0].embedding;
-    } catch (error) {
-      console.error('Embedding request failed:', {
-        status: error.response?.status,
-        message: error.message,
-        duration: Date.now() - startTime
-      });
-      throw error;
-    }
+  // ===== METADATA SEARCH =====
+  async findRelevantDocuments(queryEmbedding) {
+    console.log('🔍 Searching metadata');
+    const docsRef = collection(db, 'web3IP');
+    const q = query(docsRef, where('validationStatus', '==', 'PUBLISHED'));
+    const snapshot = await getDocs(q);
+
+    const candidates = snapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        if (!data.contentEmbedding) return null;
+        return {
+          id: doc.id,
+          similarity: this.cosineSimilarity(queryEmbedding[0], data.contentEmbedding),
+          title: data.title,
+          description: data.description,
+          authors: data.authors,
+          programme: data.programme,
+          ipfsCid: data.ipfsCid
+        };
+      })
+      .filter(doc => doc && doc.similarity > SIMILARITY_THRESHOLD)
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, MAX_RESULTS);
+
+    console.log(`📚 Found ${candidates.length} relevant documents`);
+    return candidates;
   }
 
   // ===== VECTOR OPERATIONS =====
   cosineSimilarity(vec1, vec2) {
-    const dotProduct = vec1.reduce((acc, val, i) => acc + val * vec2[i], 0);
-    const norm1 = Math.sqrt(vec1.reduce((acc, val) => acc + val * val, 0));
-    const norm2 = Math.sqrt(vec2.reduce((acc, val) => acc + val * val, 0));
-    return dotProduct / (norm1 * norm2);
+    try {
+      const dotProduct = vec1.reduce((acc, val, i) => acc + val * vec2[i], 0);
+      const norm1 = Math.sqrt(vec1.reduce((acc, val) => acc + val * val, 0));
+      const norm2 = Math.sqrt(vec2.reduce((acc, val) => acc + val * val, 0));
+      return dotProduct / (norm1 * norm2);
+    } catch {
+      return 0;
+    }
   }
 
-  // ===== DOCUMENT OPERATIONS =====
-  async searchSimilarDocuments(queryEmbedding, threshold = 0.7, maxResults = 3) {
-    console.log('Searching similar documents...');
-    const docsRef = collection(db, 'web3IP');
-    const snapshot = await getDocs(docsRef);
-
-    const contentPromises = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      if (data.contentEmbedding) {
-        const similarity = this.cosineSimilarity(queryEmbedding, data.contentEmbedding);
-        if (similarity > threshold) {
-          contentPromises.push(this.fetchIPFSContent(data.ipfsHash).then(content => ({
-            id: doc.id,
-            similarity,
-            content: content || data.description,
-            metadata: {
-              title: data.title,
-              authors: data.authors,
-              programme: data.programme,
-              ipfsHash: data.ipfsHash
-            }
-          })));
-        }
-      }
-    });
-
-    const results = await Promise.all(contentPromises);
-    return results.sort((a, b) => b.similarity - a.similarity).slice(0, maxResults);
+  // ===== LANGUAGE DETECTION =====
+  detectLanguage(text) {
+    return /[àâçéèêëîïôûùüÿñæœ]|^(bonjour|salut|je|tu|il|nous|vous|le|la|les)/i.test(text) ? 'fr' : 'en';
   }
 
   // ===== CHAT OPERATIONS =====
-  async chat(message, lang = 'en') {
-    console.log('Starting chat request with model: gpt-4o-mini');
-    const startTime = Date.now();
-
+  async chat(message, lang = null) {
     try {
-      const queryEmbedding = await this.getEmbedding(message);
-      const relevantDocs = await this.searchSimilarDocuments(queryEmbedding);
+      const detectedLang = lang || this.detectLanguage(message);
+      console.log('💬 Request:', message, `(${detectedLang})`);
 
-      const context = relevantDocs
-        .map(doc => `Title: ${doc.metadata.title}
-Content: ${doc.content}
-Authors: ${doc.metadata.authors?.join(', ')}
-Programme: ${doc.metadata.programme}`)
+      const isLibraryQuery = /quels.*documents|liste.*documents|documents.*accès/i.test(message);
+      if (isLibraryQuery) {
+        return {
+          answer: detectedLang === 'fr' 
+            ? "Je suis votre assistant I4TK. Posez-moi des questions spécifiques sur nos documents."
+            : "I am your I4TK assistant. Ask me specific questions about our documents.",
+          sources: []
+        };
+      }
+
+      const queryEmbedding = await embeddingService.getEmbedding(message);
+      const relevantDocs = await this.findRelevantDocuments(queryEmbedding);
+
+      if (relevantDocs.length === 0) {
+        return {
+          answer: detectedLang === 'fr'
+            ? "Aucun document pertinent trouvé."
+            : "No relevant documents found.",
+          sources: []
+        };
+      }
+
+      const fullDocs = await Promise.all(
+        relevantDocs.map(async doc => ({
+          ...doc,
+          content: await this.fetchIPFSContent(doc.ipfsCid) || doc.description
+        }))
+      );
+
+      const context = fullDocs
+        .map((doc, idx) => {
+          const authorStr = Array.isArray(doc.authors) 
+            ? doc.authors.join(', ') 
+            : typeof doc.authors === 'string' 
+              ? doc.authors 
+              : 'N/A';
+          return `[${idx + 1}] ${doc.title}\n${doc.content}\nAuthors: ${authorStr}`;
+        })
         .join('\n\n');
-
-      const systemPrompt = lang === 'en' 
-        ? 'You are a helpful assistant answering questions about policy documents.'
-        : 'Vous êtes un assistant utile qui répond aux questions sur les documents de politique.';
 
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
-          {
-            role: "user",
-            content: `Question: ${message}\n\nAvailable sources:\n${relevantDocs.map(doc => 
-              `- ${doc.metadata.title} (${doc.metadata.authors?.join(', ')}): ${doc.content}`
-            ).join('\n')}\n\nPlease answer using these sources and cite them in your response.`
+          { 
+            role: "system", 
+            content: detectedLang === 'fr'
+              ? "Assistant I4TK - Citez vos sources avec [1], [2]. Répondez en français."
+              : "I4TK Assistant - Cite sources using [1], [2]. Respond in English."
+          },
+          { 
+            role: "user", 
+            content: `Question: ${message}\n\nSources:\n\n${context}`
           }
         ],
-        temperature: 0.7,
+        temperature: 0.3,
         max_tokens: 800
       });
 
-      console.log(`Chat request completed in ${Date.now() - startTime}ms`);
       return {
         answer: completion.choices[0].message.content,
-        sources: relevantDocs.map(doc => ({
-          ...doc.metadata,
-          similarity: doc.similarity
+        sources: fullDocs.map(doc => ({
+          title: doc.title,
+          authors: doc.authors,
+          programme: doc.programme,
+          similarity: doc.similarity,
+          url: `${IPFS_GATEWAY}${doc.ipfsCid.replace('ipfs://', '')}`
         }))
       };
+
     } catch (error) {
-      console.error('Chat request failed:', {
-        status: error.response?.status,
-        message: error.message,
-        duration: Date.now() - startTime
-      });
+      console.error('❌ Error:', error);
       throw error;
     }
   }

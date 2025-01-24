@@ -1,23 +1,15 @@
 // ================ IMPORTS ================
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { chatService } from '../../services/chatService';
 
 // ================ COMPONENT ================
 const LibraryChat = ({ currentLang = 'en' }) => {
-  // ===== STATE & REFS =====
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef(null);
 
-  // ===== EFFECTS =====
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // ===== HANDLERS =====
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -28,7 +20,7 @@ const LibraryChat = ({ currentLang = 'en' }) => {
     setIsLoading(true);
 
     try {
-      const response = await chatService.chat(input, currentLang);
+      const response = await chatService.chat(input);
       setMessages(prev => [...prev, {
         type: 'assistant',
         content: response.answer,
@@ -47,11 +39,11 @@ const LibraryChat = ({ currentLang = 'en' }) => {
     }
   };
 
-  // ===== RENDER =====
   return (
     <div className="container mx-auto max-w-4xl p-4">
       <div className="flex flex-col h-[600px] bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
-        {/* Message List */}
+        
+        {/* Message list */}
         <div className="flex-1 overflow-y-auto p-4">
           {messages.map((message, index) => (
             <div
@@ -68,22 +60,32 @@ const LibraryChat = ({ currentLang = 'en' }) => {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{message.content}</p>
-                {message.sources && message.sources.length > 0 && (
+                {message.sources?.length > 0 && (
                   <div className="mt-2 text-xs text-gray-600">
                     <p className="font-semibold">
                       {currentLang === 'en' ? 'Sources:' : 'Sources :'}
                     </p>
-                    {message.sources.map((source, idx) => (
-                      <p key={idx} className="italic">
-                        {source.title} - {source.authors?.join(', ')}
-                      </p>
-                    ))}
+                    <div className="space-y-1">
+                      {message.sources.map((source, idx) => (
+                        <p key={idx} className="italic">
+                          <a 
+                            href={source.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            {source.title}
+                          </a>
+                          {source.authors?.length > 0 && ` - ${source.authors.join(', ')}`}
+                          {source.programme && ` (${source.programme})`}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           ))}
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Form */}
