@@ -1,21 +1,23 @@
-// src/Components/Library/LibraryChat.jsx
+// ================ IMPORTS ================
 import React, { useState, useRef, useEffect } from 'react';
+import { useAuth } from '../AuthContext';
 import { chatService } from '../../services/chatService';
 
+// ================ COMPONENT ================
 const LibraryChat = ({ currentLang = 'en' }) => {
+  // ===== STATE & REFS =====
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
+  // ===== EFFECTS =====
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // ===== HANDLERS =====
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -27,91 +29,91 @@ const LibraryChat = ({ currentLang = 'en' }) => {
 
     try {
       const response = await chatService.chat(input, currentLang);
-      const aiMessage = {
+      setMessages(prev => [...prev, {
         type: 'assistant',
         content: response.answer,
         sources: response.sources
-      };
-      setMessages(prev => [...prev, aiMessage]);
+      }]);
     } catch (error) {
       console.error('Chat error:', error);
-      const errorMessage = {
+      setMessages(prev => [...prev, {
         type: 'error',
         content: currentLang === 'en' 
-          ? 'An error occurred. Please try again.' 
+          ? 'An error occurred. Please try again.'
           : 'Une erreur est survenue. Veuillez réessayer.'
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ===== RENDER =====
   return (
-    <div className="container mx-auto flex flex-col h-[600px]">
-      <h2 className="font-serif text-xl font-bold mb-4">
-        {currentLang === 'en' 
-          ? 'Chat with our knowledge base:' 
-          : 'Dialoguez avec notre base de connaissances :'}
-      </h2>
-
-      <div className="flex-1 overflow-y-auto bg-white/50 backdrop-blur-sm rounded-lg p-4 mb-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`mb-4 ${
-              message.type === 'user' ? 'text-right' : 'text-left'
-            }`}
-          >
+    <div className="container mx-auto max-w-4xl p-4">
+      <div className="flex flex-col h-[600px] bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
+        {/* Message List */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {messages.map((message, index) => (
             <div
-              className={`inline-block rounded-lg px-4 py-2 max-w-[80%] ${
-                message.type === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : message.type === 'error'
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-gray-100'
-              }`}
+              key={index}
+              className={`mb-4 ${message.type === 'user' ? 'text-right' : 'text-left'}`}
             >
-              <p>{message.content}</p>
-              {message.sources && (
-                <div className="text-xs mt-2 text-gray-600">
-                  {currentLang === 'en' ? 'Sources:' : 'Sources :'} 
-                  {message.sources.map((source, idx) => (
-                    <p key={idx} className="italic">
-                      {source.metadata.title} - {source.metadata.author}
+              <div
+                className={`inline-block rounded-lg px-4 py-2 max-w-[80%] ${
+                  message.type === 'user'
+                    ? 'bg-white text-green-800'
+                    : message.type === 'error'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-white'
+                }`}
+              >
+                <p className="whitespace-pre-wrap">{message.content}</p>
+                {message.sources && message.sources.length > 0 && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    <p className="font-semibold">
+                      {currentLang === 'en' ? 'Sources:' : 'Sources :'}
                     </p>
-                  ))}
-                </div>
-              )}
+                    {message.sources.map((source, idx) => (
+                      <p key={idx} className="italic">
+                        {source.title} - {source.authors?.join(', ')}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={currentLang === 'en' 
-            ? 'Ask a question...' 
-            : 'Posez une question...'}
-          className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          ) : (
-            currentLang === 'en' ? 'Send' : 'Envoyer'
-          )}
-        </button>
-      </form>
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="p-4 border-t">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={currentLang === 'en' 
+                ? 'Ask about our research documents...'
+                : 'Posez une question sur nos documents...'}
+              className="flex-1 px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+              ) : (
+                currentLang === 'en' ? 'Send' : 'Envoyer'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
