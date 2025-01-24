@@ -64,13 +64,24 @@ const PressRelease = () => (
     <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">Press Releases</h2>
     <div className="space-y-8">
       <div className="bg-white/50 rounded-lg p-6">
-        <h3 className="text-xl font-bold mb-2">UNESCO launches global network for trust in digital space</h3>
-        <p className="text-gray-600 mb-4">17 January 2024</p>
-        <p className="text-gray-800">UNESCO has launched a Global Knowledge Network for an Internet for Trust...</p>
-        <a href="https://www.unesco.org/en/articles/unesco-launches-global-network-trust-digital-space" 
-           className="text-blue-600 hover:underline mt-2 inline-block">
-          Read more
-        </a>
+        <h3 className="text-xl font-bold mb-2">UNESCO launches I4T Global Knowledge Network</h3>
+        <p className="text-gray-600 mb-4">22 February 2024</p>
+        <p className="text-gray-800">UNESCO launches the Internet for Trust Global Knowledge Network (I4T GKN), gathering 16 research centers and think tanks from all regions. This initiative aims to strengthen digital cooperation through collective knowledge production.</p>
+        <a href="#" className="text-blue-600 hover:underline mt-2 inline-block">Download PDF</a>
+      </div>
+
+      <div className="bg-white/50 rounded-lg p-6">
+        <h3 className="text-xl font-bold mb-2">I4TK's Contribution to the UN Global Digital Compact</h3>
+        <p className="text-gray-600 mb-4">February 2024</p>
+        <p className="text-gray-800">I4TK submitted its contribution to the UN Global Digital Compact, emphasizing research-based digital governance and promoting inclusive international cooperation for a trustworthy digital space.</p>
+        <a href="#" className="text-blue-600 hover:underline mt-2 inline-block">Download PDF</a>
+      </div>
+
+      <div className="bg-white/50 rounded-lg p-6">
+        <h3 className="text-xl font-bold mb-2">Policy Commentary for T20 Brazil 2024: Global Election Datafication</h3>
+        <p className="text-gray-600 mb-4">February 2024</p>
+        <p className="text-gray-800">I4TK contributed to T20 Brazil 2024 with a policy brief on Global Election Datafication, addressing digital technologies in electoral processes and promoting safeguards for democratic integrity.</p>
+        <a href="#" className="text-blue-600 hover:underline mt-2 inline-block">Read More</a>
       </div>
     </div>
   </div>
