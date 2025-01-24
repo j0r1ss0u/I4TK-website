@@ -4,7 +4,9 @@ import { Globe2, Users, Shield, Target } from 'lucide-react';
 const TABS = {
   ABOUT: 'about',
   PRESS_RELEASE: 'press-release',
-  PRAI_PARTNERSHIP: 'prai-partnership'
+  PRAI_PARTNERSHIP: 'prai-partnership',
+  TOR: 'Terms of Reference',
+  FOUNDERS: 'Foundnig members'  
 };
 
 const MissionCard = ({ title, description, icon: Icon, color }) => (
@@ -56,6 +58,28 @@ const TimelineEvent = ({ date, title, location, isDeliverable = false }) => (
         </div>
       </>
     )}
+  </div>
+);
+
+const TOR = () => (
+  <div className="space-y-6">
+    <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">PRAI Partnership</h2>
+    <div className="prose max-w-none">
+      <p>
+        Terms of Reference.
+      </p>
+    </div>
+  </div>
+);
+
+const FOUNDERS = () => (
+  <div className="space-y-6">
+    <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">Founding members</h2>
+    <div className="prose max-w-none">
+      <p>
+        Founding members.
+      </p>
+    </div>
   </div>
 );
 
@@ -132,10 +156,14 @@ const AboutPage = () => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case TABS.TOR:
+        return <TOR />;
       case TABS.PRESS_RELEASE:
         return <PressRelease />;
       case TABS.PRAI_PARTNERSHIP:
         return <PRAIPartnership />;
+      case TABS.FOUNDERS:
+        return <FOUNDERS />;
       default:
         return (
           <>
@@ -271,9 +299,11 @@ const AboutPage = () => {
       <div className="mb-8 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           {Object.entries({
-            [TABS.ABOUT]: 'About',
+            [TABS.ABOUT]: 'Activity',
             [TABS.PRESS_RELEASE]: 'Press Release',
-            [TABS.PRAI_PARTNERSHIP]: 'PRAI Partnership'
+            [TABS.TOR]: 'Terms of reference',
+            [TABS.PRAI_PARTNERSHIP]: 'PRAI Partnership',
+            [TABS.FOUNDERS]: 'Founding members'
           }).map(([key, label]) => (
             <button
               key={key}
