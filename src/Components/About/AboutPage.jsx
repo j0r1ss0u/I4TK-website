@@ -1,5 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Globe2, Users, Shield, Target } from 'lucide-react';
+
+const TABS = {
+  ABOUT: 'about',
+  PRESS_RELEASE: 'press-release',
+  PRAI_PARTNERSHIP: 'prai-partnership'
+};
 
 const MissionCard = ({ title, description, icon: Icon, color }) => (
   <div className="backdrop-blur-sm bg-white/30 p-6 rounded-lg text-center h-[200px] flex flex-col items-center justify-center hover:bg-white/40 transition-all">
@@ -21,11 +27,9 @@ const TimelineEvent = ({ date, title, location, isDeliverable = false }) => (
           </div>
         </div>
         <div className="relative flex flex-col items-center w-[10%]">
-          {/* Vertical Line */}
           <div className="absolute top-0 bottom-0 w-1 bg-gradient-to-b from-orange-300 to-orange-500" 
                style={{ transform: 'translateY(-50%)', height: 'calc(100% + 80px)' }}>
           </div>
-          {/* Point */}
           <div className="relative w-4 h-4 bg-orange-500 rounded-full border-4 border-orange-200 z-10 
                         transition-all duration-200 group-hover:scale-150 group-hover:border-orange-100">
           </div>
@@ -36,11 +40,9 @@ const TimelineEvent = ({ date, title, location, isDeliverable = false }) => (
       <>
         <div className="w-[45%]"></div>
         <div className="relative flex flex-col items-center w-[10%]">
-          {/* Vertical Line */}
           <div className="absolute top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-300 to-emerald-500"
                style={{ transform: 'translateY(-50%)', height: 'calc(100% + 80px)' }}>
           </div>
-          {/* Point */}
           <div className="relative w-4 h-4 bg-orange-500 rounded-full border-4 border-orange-200 z-10 
                         transition-all duration-200 group-hover:scale-150 group-hover:border-orange-100">
           </div>
@@ -57,7 +59,39 @@ const TimelineEvent = ({ date, title, location, isDeliverable = false }) => (
   </div>
 );
 
+const PressRelease = () => (
+  <div className="space-y-6">
+    <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">Press Releases</h2>
+    <div className="space-y-8">
+      <div className="bg-white/50 rounded-lg p-6">
+        <h3 className="text-xl font-bold mb-2">UNESCO launches global network for trust in digital space</h3>
+        <p className="text-gray-600 mb-4">17 January 2024</p>
+        <p className="text-gray-800">UNESCO has launched a Global Knowledge Network for an Internet for Trust...</p>
+        <a href="https://www.unesco.org/en/articles/unesco-launches-global-network-trust-digital-space" 
+           className="text-blue-600 hover:underline mt-2 inline-block">
+          Read more
+        </a>
+      </div>
+    </div>
+  </div>
+);
+
+const PRAIPartnership = () => (
+  <div className="space-y-6">
+    <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">PRAI Partnership</h2>
+    <div className="prose max-w-none">
+      <p>
+        The Partnership for Rights and AI (PRAI) is a collaboration between civil society organizations, 
+        academic institutions, and other stakeholders committed to ensuring that AI development and 
+        deployment respects human rights.
+      </p>
+    </div>
+  </div>
+);
+
 const AboutPage = () => {
+  const [activeTab, setActiveTab] = useState(TABS.ABOUT);
+
   const missionCards = [
     {
       title: "World-class knowledge producers",
@@ -85,136 +119,171 @@ const AboutPage = () => {
     }
   ];
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case TABS.PRESS_RELEASE:
+        return <PressRelease />;
+      case TABS.PRAI_PARTNERSHIP:
+        return <PRAIPartnership />;
+      default:
+        return (
+          <>
+            <section className="mb-16">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {missionCards.map((card, index) => (
+                  <MissionCard key={index} {...card} />
+                ))}
+              </div>
+            </section>
+            {/* Timeline Section */}
+            <section className="mb-16">
+              <h2 className="text-2xl font-serif font-bold text-gray-900 mb-12 text-center">
+                Our Journey & Milestones
+              </h2>
+              <div className="relative space-y-12">
+                <TimelineEvent 
+                  date="Dec 2025" 
+                  title="G20" 
+                  location="South Africa"
+                />
+                <TimelineEvent
+                  date="Dec 2025"
+                  title="I4TK Side event"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="Nov 2025"
+                  title="Paris Peace Forum"
+                  location="Paris"
+                />
+                <TimelineEvent
+                  date="Q4 2025"
+                  title="Capacity Building INDIA"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="Sept 2025"
+                  title="MondiaCULT"
+                  location="Barcelona"
+                />
+                <TimelineEvent
+                  date="Q3 2025"
+                  title="Capacity Building AFRICA"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="Q2 2025"
+                  title="Capacity Building LATAM"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="Apr 2025"
+                  title="I4TK 2024 Report"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="Feb 2025"
+                  title="AI Action Summit"
+                  location="Paris"
+                />
+                <TimelineEvent
+                  date="Q1 2025"
+                  title="Capacity Building EUROPE"
+                  isDeliverable={true}
+                />
+
+                <TimelineEvent
+                  date="Nov 2024"
+                  title="G20"
+                  location="Brazil"
+                />
+                <TimelineEvent
+                  date="Sept 2024"
+                  title="Working paper on ppl expectations from regulation"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="Sept 2024"
+                  title="Summit 4 Future"
+                  location="NYC"
+                />
+                <TimelineEvent
+                  date="June 2024"
+                  title="Working paper on relations with I4T regulators network"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="June 2024"
+                  title="I4T Regulators' network meeting"
+                  location="Croatia"
+                />
+                <TimelineEvent
+                  date="May 2024"
+                  title="Press Freedom Day"
+                  location="Chile"
+                />
+                <TimelineEvent
+                  date="Apr 2024"
+                  title="T20 Brazil"
+                  location="Brazil"
+                />
+                <TimelineEvent
+                  date="Mar 2024"
+                  title="Policy Brief for T20 Brasil"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="Mar 2024"
+                  title="Global map of I4T knowledge players"
+                  isDeliverable={true}
+                />
+                <TimelineEvent
+                  date="Feb 2024"
+                  title="I4T GKN Launch seminar"
+                  location="Brazil"
+                />
+                <TimelineEvent
+                  date="Feb 2024"
+                  title="I4T GKN Concept note"
+                  isDeliverable={true}
+                />
+              </div>
+            </section>
+          </>
+        );
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* Mission Cards Section */}
-      <section className="mb-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {missionCards.map((card, index) => (
-            <MissionCard key={index} {...card} />
+      {/* Tab Navigation */}
+      <div className="mb-8 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {Object.entries({
+            [TABS.ABOUT]: 'About',
+            [TABS.PRESS_RELEASE]: 'Press Release',
+            [TABS.PRAI_PARTNERSHIP]: 'PRAI Partnership'
+          }).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`pb-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === key
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {label}
+            </button>
           ))}
-        </div>
-      </section>
+        </nav>
+      </div>
 
-      {/* Timeline Section */}
-      <section className="mb-16">
-        <h2 className="text-2xl font-serif font-bold text-gray-900 mb-12 text-center">
-          Our Journey & Milestones
-        </h2>
-        <div className="relative space-y-12">
-          {/* 2025 */}
-          <TimelineEvent 
-            date="Dec 2025" 
-            title="G20" 
-            location="South Africa"
-          />
-          <TimelineEvent
-            date="Dec 2025"
-            title="I4TK Side event"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="Nov 2025"
-            title="Paris Peace Forum"
-            location="Paris"
-          />
-          <TimelineEvent
-            date="Q4 2025"
-            title="Capacity Building INDIA"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="Sept 2025"
-            title="MondiaCULT"
-            location="Barcelona"
-          />
-          <TimelineEvent
-            date="Q3 2025"
-            title="Capacity Building AFRICA"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="Q2 2025"
-            title="Capacity Building LATAM"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="Apr 2025"
-            title="I4TK 2024 Report"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="Feb 2025"
-            title="AI Action Summit"
-            location="Paris"
-          />
-          <TimelineEvent
-            date="Q1 2025"
-            title="Capacity Building EUROPE"
-            isDeliverable={true}
-          />
-
-          {/* 2024 */}
-          <TimelineEvent
-            date="Nov 2024"
-            title="G20"
-            location="Brazil"
-          />
-          <TimelineEvent
-            date="Sept 2024"
-            title="Working paper on ppl expectations from regulation"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="Sept 2024"
-            title="Summit 4 Future"
-            location="NYC"
-          />
-          <TimelineEvent
-            date="June 2024"
-            title="Working paper on relations with I4T regulators network"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="June 2024"
-            title="I4T Regulators' network meeting"
-            location="Croatia"
-          />
-          <TimelineEvent
-            date="May 2024"
-            title="Press Freedom Day"
-            location="Chile"
-          />
-          <TimelineEvent
-            date="Apr 2024"
-            title="T20 Brazil"
-            location="Brazil"
-          />
-          <TimelineEvent
-            date="Mar 2024"
-            title="Policy Brief for T20 Brasil"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="Mar 2024"
-            title="Global map of I4T knowledge players"
-            isDeliverable={true}
-          />
-          <TimelineEvent
-            date="Feb 2024"
-            title="I4T GKN Launch seminar"
-            location="Brazil"
-          />
-          <TimelineEvent
-            date="Feb 2024"
-            title="I4T GKN Concept note"
-            isDeliverable={true}
-          />
-        </div>
-      </section>
+      {/* Content */}
+      {renderContent()}
 
       {/* Contact Section */}
-      <section className="bg-white/50 rounded-xl p-8 text-center">
+      <section className="bg-white/50 rounded-xl p-8 text-center mt-12">
         <div className="space-y-4">
           <p className="text-lg">
             Contact us at{" "}
