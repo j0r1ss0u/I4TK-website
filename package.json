@@ -32,6 +32,7 @@
     "axios": "^1.7.9",
     "firebase": "^11.0.2",
     "framer-motion": "^11.13.5",
+    "franc": "^6.2.0",
     "js-base64": "^3.7.7",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.454.0",
