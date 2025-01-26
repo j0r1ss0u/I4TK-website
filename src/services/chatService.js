@@ -90,8 +90,8 @@ class ChatService {
       if (isLibraryQuery) {
         return {
           answer: detectedLang === 'fr' 
-            ? "Je suis votre assistant I4TK. Posez-moi des questions spécifiques sur nos documents."
-            : "I am your I4TK assistant. Ask me specific questions about our documents.",
+            ? "Je suis votre assistant I4TK. Tu peux me poser n'importe quelle question sur les travaux de ma communauté. Je tâcherai de te répondre au mieux sur la base des contenus que nous avons publié."
+            : "I am your I4TK assistant. You can ask any questions about my comunity's research. I'll try to answer at best refering to our published documents.",
           sources: []
         };
       }

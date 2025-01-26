@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Globe2, Users, Shield, Target } from 'lucide-react';
+import FoundersPage from './FoundersPage';
+
 
 const TABS = {
   ABOUT: 'about',
@@ -163,7 +165,7 @@ const AboutPage = () => {
       case TABS.PRAI_PARTNERSHIP:
         return <PRAIPartnership />;
       case TABS.FOUNDERS:
-        return <FOUNDERS />;
+        return <FoundersPage />;
       default:
         return (
           <>
