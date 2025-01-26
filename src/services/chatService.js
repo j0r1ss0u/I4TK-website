@@ -7,24 +7,24 @@ import OpenAI from 'openai';
 import axios from 'axios';
 import { embeddingService } from './embeddingService';
 import { languageDetection } from './languageService';
+import { conversationRouter, ConversationRouter } from './conversationRouter';
 
 // Constantes de configuration
-const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';  // Gateway IPFS pour accéder aux documents
-const MAX_RESULTS = 3;                         // Nombre max de documents pertinents
-const MAX_RETRIES = 3;                         // Tentatives max en cas d'erreur
-const RETRY_DELAY = 1000;                      // Délai entre les tentatives (ms)
+const IPFS_GATEWAY = 'https://ipfs.io/ipfs/';
+const MAX_RESULTS = 3;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
 
 // ================================================================
 // SERVICE PRINCIPAL DE CHAT
 // ================================================================
 class ChatService {
   constructor() {
-    // Initialisation OpenAI et stockage conversations
     this.openai = new OpenAI({
       apiKey: import.meta.env.VITE_OPENAI_API_KEY,
       dangerouslyAllowBrowser: true
     });
-    this.conversations = new Map(); // Pour historique futur
+    this.conversations = new Map();
   }
 
   // ================================================================
@@ -32,22 +32,19 @@ class ChatService {
   // ================================================================
   async fetchIPFSContent(ipfsCid, retries = 3) {
     try {
-      // Nettoyage et validation CID
       let cid = ipfsCid.replace('ipfs://', '').trim();
       if (!cid.match(/^[a-zA-Z0-9]{46,62}$/)) return null;
 
       console.log('📥 Fetching IPFS:', cid);
-      // Tentative récupération avec headers CORS
       const response = await axios.get(`${IPFS_GATEWAY}${cid}`, {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Content-Type': 'application/json'
         },
-        timeout: 5000 // Timeout 5s
+        timeout: 5000
       });
       return response.data;
     } catch (error) {
-      // Retry si timeout ou erreur gateway
       if (retries > 0 && (error.code === 'ECONNABORTED' || error.response?.status === 504)) {
         await new Promise(r => setTimeout(r, RETRY_DELAY));
         return this.fetchIPFSContent(ipfsCid, retries - 1);
@@ -61,12 +58,10 @@ class ChatService {
   // RECHERCHE SÉMANTIQUE - Trouver documents pertinents
   // ================================================================
   async findRelevantDocuments(queryEmbedding) {
-    // Récupération documents publiés
     const docsRef = collection(db, 'web3IP');
     const q = query(docsRef, where('validationStatus', '==', 'PUBLISHED'));
     const snapshot = await getDocs(q);
 
-    // Calcul similarités pour seuil dynamique
     const similarities = snapshot.docs
       .map(doc => {
         const data = doc.data();
@@ -77,7 +72,6 @@ class ChatService {
 
     const threshold = this.getSimilarityThreshold(similarities);
 
-    // Filtrage et tri des documents pertinents
     const candidates = snapshot.docs
       .map(doc => {
         const data = doc.data();
@@ -103,14 +97,12 @@ class ChatService {
   // ================================================================
   // UTILS - Fonctions utilitaires
   // ================================================================
-  // Calcul seuil similarité dynamique
   getSimilarityThreshold(similarities) {
     if (!similarities.length) return 0.1;
     const mean = similarities.reduce((a,b) => a + b) / similarities.length;
-    return Math.max(0.05, mean * 0.7); // Min 0.05, sinon 70% moyenne
+    return Math.max(0.05, mean * 0.7);
   }
 
-  // Calcul similarité cosinus entre vecteurs
   cosineSimilarity(vec1, vec2) {
     try {
       const dotProduct = vec1.reduce((acc, val, i) => acc + val * vec2[i], 0);
@@ -122,12 +114,10 @@ class ChatService {
     }
   }
 
-  // Détection langue via service externe
   detectLanguage(text) {
     return languageDetection.detectLanguage(text);
   }
 
-  // Message salutation selon heure
   getGreeting(lang) {
     const hour = new Date().getHours();
     if (lang === 'fr') {
@@ -141,16 +131,112 @@ class ChatService {
   }
 
   // ================================================================
-  // MÉTHODE PRINCIPALE - Traitement messages
+  // MÉTHODES DE CHAT
+  // ================================================================
+
+  // Gestion conversation simple
+  async handleSimpleChat(message, detectedLang) {
+    const completion = await this.openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
+        { 
+          role: "system", 
+          content: conversationRouter.getSystemPrompt('chitchat', detectedLang)
+        },
+        { role: "user", content: message }
+      ],
+      temperature: 0.7
+    });
+
+    return {
+      answer: completion.choices[0].message.content,
+      sources: []
+    };
+  }
+
+  // Gestion recherche documentaire
+  async handleDocumentSearch(message, detectedLang, retries = MAX_RETRIES) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const queryEmbedding = await embeddingService.getEmbedding(message);
+        const relevantDocs = await this.findRelevantDocuments(queryEmbedding);
+
+        if (relevantDocs.length === 0) {
+          return {
+            answer: detectedLang === 'fr'
+              ? "Je ne trouve pas de documents pertinents. Pourriez-vous reformuler votre question ?"
+              : "I couldn't find relevant documents. Could you rephrase your question?",
+            sources: []
+          };
+        }
+
+        const fullDocs = await Promise.all(
+          relevantDocs.map(async doc => ({
+            ...doc,
+            content: await this.fetchIPFSContent(doc.ipfsCid) || doc.description
+          }))
+        );
+
+        const context = fullDocs
+          .map((doc, idx) => {
+            const authorStr = Array.isArray(doc.authors) 
+              ? doc.authors.join(', ') 
+              : typeof doc.authors === 'string' 
+                ? doc.authors 
+                : 'N/A';
+            return `[${idx + 1}] ${doc.title}\n${doc.content}\nAuthors: ${authorStr}`;
+          })
+          .join('\n\n');
+
+        const completion = await this.openai.chat.completions.create({
+          model: "gpt-4-turbo-preview",
+          messages: [
+            { 
+              role: "system", 
+              content: conversationRouter.getSystemPrompt('research', detectedLang)
+            },
+            { role: "user", content: `Question: ${message}\n\nSources:\n\n${context}` }
+          ],
+          temperature: 0.3,
+          max_tokens: 800
+        });
+
+        return {
+          answer: completion.choices[0].message.content,
+          sources: fullDocs.map(doc => ({
+            title: doc.title,
+            authors: doc.authors,
+            programme: doc.programme,
+            similarity: doc.similarity,
+            url: `${IPFS_GATEWAY}${doc.ipfsCid.replace('ipfs://', '')}`
+          }))
+        };
+      } catch (error) {
+        if (error.status === 429 && i < retries - 1) {
+          await new Promise(r => setTimeout(r, RETRY_DELAY * (i + 1)));
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new Error('Max retries reached');
+  }
+
+  // ================================================================
+  // MÉTHODE PRINCIPALE - Point d'entrée
   // ================================================================
   async chat(message, lang = null, retries = MAX_RETRIES) {
     try {
       const detectedLang = lang || this.detectLanguage(message);
       console.log('💬 Request:', message, `(${detectedLang})`);
 
-      // 1. Gestion messages simples
-      const greetings = /^(bonjour|hello|hi|salut|hey|coucou)$/i;
-      if (greetings.test(message.trim())) {
+      // Détection du type de message
+      const messageType = conversationRouter.detectIntent(message, detectedLang);
+      console.log('🎯 Message type:', messageType);
+
+      // Si c'est une salutation
+      if (messageType === ConversationRouter.MESSAGE_TYPES.GREETING) {
         const greeting = this.getGreeting(detectedLang);
         return {
           answer: detectedLang === 'fr' 
@@ -160,113 +246,25 @@ class ChatService {
         };
       }
 
-      // 2. Questions sur la bibliothèque
-      const isLibraryQuery = /quels.*documents|liste.*documents|documents.*accès/i.test(message);
-      if (isLibraryQuery) {
-        return {
-          answer: detectedLang === 'fr' 
-            ? "Je peux chercher dans notre bibliothèque de documents de recherche, principalement en anglais. Je traduirai les informations pertinentes en français."
-            : "I can search through our research documents library. Feel free to ask any specific questions.",
-          sources: []
-        };
+      // Si on doit chercher dans les documents
+      if (conversationRouter.shouldSearchDocuments(messageType)) {
+        return await this.handleDocumentSearch(message, detectedLang, retries);
       }
 
-      // 3. Recherche et réponse avec retry
-      for (let i = 0; i < retries; i++) {
-        try {
-          // Obtention embedding de la question
-          const queryEmbedding = await embeddingService.getEmbedding(message);
-          const relevantDocs = await this.findRelevantDocuments(queryEmbedding);
+      // Sinon, conversation simple
+      return await this.handleSimpleChat(message, detectedLang);
 
-          // Si pas de docs pertinents
-          if (relevantDocs.length === 0) {
-            return {
-              answer: detectedLang === 'fr'
-                ? "Je ne trouve pas de documents pertinents. Pourriez-vous reformuler votre question ?"
-                : "I couldn't find relevant documents. Could you rephrase your question?",
-              sources: []
-            };
-          }
-
-          // Récupération contenu complet
-          const fullDocs = await Promise.all(
-            relevantDocs.map(async doc => ({
-              ...doc,
-              content: await this.fetchIPFSContent(doc.ipfsCid) || doc.description
-            }))
-          );
-
-          // Préparation prompt selon langue
-          const prompt = detectedLang === 'fr'
-            ? `Assistant I4TK spécialisé dans les documents de recherche. Instructions:
-               - Résumez les informations pertinentes
-               - Citez vos sources avec [1], [2], etc.
-               - Si les documents ne permettent pas de répondre précisément, dites-le
-               - Traduisez les concepts clés en français`
-            : `I4TK assistant specialized in research documents. Instructions:
-               - Summarize relevant information
-               - Cite sources using [1], [2], etc.
-               - If documents don't allow for a precise answer, say so
-               - Focus on key concepts`;
-
-          // Formatage contexte pour GPT
-          const context = fullDocs
-            .map((doc, idx) => {
-              const authorStr = Array.isArray(doc.authors) 
-                ? doc.authors.join(', ') 
-                : typeof doc.authors === 'string' 
-                  ? doc.authors 
-                  : 'N/A';
-              return `[${idx + 1}] ${doc.title}\n${doc.content}\nAuthors: ${authorStr}`;
-            })
-            .join('\n\n');
-
-          // Appel GPT-4
-          const completion = await this.openai.chat.completions.create({
-            model: "gpt-4-turbo-preview",
-            messages: [
-              { role: "system", content: prompt },
-              { role: "user", content: `Question: ${message}\n\nSources:\n\n${context}` }
-            ],
-            temperature: 0.3,
-            max_tokens: 800
-          });
-
-          // Retour réponse avec sources
-          return {
-            answer: completion.choices[0].message.content,
-            sources: fullDocs.map(doc => ({
-              title: doc.title,
-              authors: doc.authors,
-              programme: doc.programme,
-              similarity: doc.similarity,
-              url: `${IPFS_GATEWAY}${doc.ipfsCid.replace('ipfs://', '')}`
-            }))
-          };
-        } catch (error) {
-          // Retry si rate limit
-          if (error.status === 429 && i < retries - 1) {
-            await new Promise(r => setTimeout(r, RETRY_DELAY * (i + 1)));
-            continue;
-          }
-          throw error;
-        }
-      }
-
-      // Message si tous les retries échouent
+    } catch (error) {
+      console.error('❌ Error:', error);
+      const errorLang = detectedLang || 'en';
       return {
-        answer: detectedLang === 'fr'
+        answer: errorLang === 'fr'
           ? "Service temporairement indisponible. Veuillez réessayer dans quelques instants."
           : "Service temporarily unavailable. Please try again in a moment.",
         sources: []
       };
-
-    } catch (error) {
-      console.error('❌ Error:', error);
-      throw error;
     }
   }
 }
 
-// Export instance unique
 export const chatService = new ChatService();
