@@ -23,7 +23,13 @@ const OrganizationSection = ({ logo, members }) => (
     <div className="flex justify-center mb-16">
       <img src={logo.url} alt={logo.alt} className="h-16 object-contain" />
     </div>
-    <div className={`grid ${members.length === 3 ? 'grid-cols-3 gap-x-20' : 'grid-cols-2 gap-x-32'} mx-auto max-w-5xl`}>
+    <div className={`grid ${
+      members.length === 1 
+        ? 'grid-cols-1' 
+        : members.length === 3 
+          ? 'grid-cols-3 gap-x-20' 
+          : 'grid-cols-2 gap-x-32'
+    } mx-auto max-w-5xl`}>
       {members.map(member => (
         <MemberCard key={member.name} {...member} />
       ))}

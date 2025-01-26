@@ -41,7 +41,7 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
     { id: "members", label: "Members", public: true },
     { id: "library", label: "Library", public: true },
     { id: "forum", label: "Forum", requiresAuth: true },
-    { id: "chat", label: "AI Chat", adminOnly: true }
+    { id: "chat", label: "AI Chat", adminOnly: false }
   ];
 
   const visibleItems = navItems.filter(item => 

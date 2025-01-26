@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Globe2, Users, Shield, Target } from 'lucide-react';
 import FoundersPage from './FoundersPage';
+import Pressrelease from './Pressrelease';
+import Torpage from './Torpage';
+import PRAI from './PRAI';
 
 
 const TABS = {
@@ -63,69 +66,6 @@ const TimelineEvent = ({ date, title, location, isDeliverable = false }) => (
   </div>
 );
 
-const TOR = () => (
-  <div className="space-y-6">
-    <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">PRAI Partnership</h2>
-    <div className="prose max-w-none">
-      <p>
-        Terms of Reference.
-      </p>
-    </div>
-  </div>
-);
-
-const FOUNDERS = () => (
-  <div className="space-y-6">
-    <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">Founding members</h2>
-    <div className="prose max-w-none">
-      <p>
-        Founding members.
-      </p>
-    </div>
-  </div>
-);
-
-const PressRelease = () => (
-  <div className="space-y-6">
-    <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">Press Releases</h2>
-    <div className="space-y-8">
-      <div className="bg-white/50 rounded-lg p-6">
-        <h3 className="text-xl font-bold mb-2">UNESCO launches I4T Global Knowledge Network</h3>
-        <p className="text-gray-600 mb-4">22 February 2024</p>
-        <p className="text-gray-800">UNESCO launches the Internet for Trust Global Knowledge Network (I4T GKN), gathering 16 research centers and think tanks from all regions. This initiative aims to strengthen digital cooperation through collective knowledge production.</p>
-        <a href="#" className="text-blue-600 hover:underline mt-2 inline-block">Download PDF</a>
-      </div>
-
-      <div className="bg-white/50 rounded-lg p-6">
-        <h3 className="text-xl font-bold mb-2">I4TK's Contribution to the UN Global Digital Compact</h3>
-        <p className="text-gray-600 mb-4">February 2024</p>
-        <p className="text-gray-800">I4TK submitted its contribution to the UN Global Digital Compact, emphasizing research-based digital governance and promoting inclusive international cooperation for a trustworthy digital space.</p>
-        <a href="#" className="text-blue-600 hover:underline mt-2 inline-block">Download PDF</a>
-      </div>
-
-      <div className="bg-white/50 rounded-lg p-6">
-        <h3 className="text-xl font-bold mb-2">Policy Commentary for T20 Brazil 2024: Global Election Datafication</h3>
-        <p className="text-gray-600 mb-4">February 2024</p>
-        <p className="text-gray-800">I4TK contributed to T20 Brazil 2024 with a policy brief on Global Election Datafication, addressing digital technologies in electoral processes and promoting safeguards for democratic integrity.</p>
-        <a href="#" className="text-blue-600 hover:underline mt-2 inline-block">Read More</a>
-      </div>
-    </div>
-  </div>
-);
-
-const PRAIPartnership = () => (
-  <div className="space-y-6">
-    <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">PRAI Partnership</h2>
-    <div className="prose max-w-none">
-      <p>
-        The Partnership for Rights and AI (PRAI) is a collaboration between civil society organizations, 
-        academic institutions, and other stakeholders committed to ensuring that AI development and 
-        deployment respects human rights.
-      </p>
-    </div>
-  </div>
-);
-
 const AboutPage = () => {
   const [activeTab, setActiveTab] = useState(TABS.ABOUT);
 
@@ -159,11 +99,11 @@ const AboutPage = () => {
   const renderContent = () => {
     switch (activeTab) {
       case TABS.TOR:
-        return <TOR />;
+        return <Torpage />;
       case TABS.PRESS_RELEASE:
-        return <PressRelease />;
+        return <Pressrelease />;
       case TABS.PRAI_PARTNERSHIP:
-        return <PRAIPartnership />;
+        return <PRAI />;
       case TABS.FOUNDERS:
         return <FoundersPage />;
       default:
@@ -301,11 +241,12 @@ const AboutPage = () => {
       <div className="mb-8 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           {Object.entries({
+            [TABS.FOUNDERS]: 'Founding members',
             [TABS.ABOUT]: 'Activity',
             [TABS.PRESS_RELEASE]: 'Press Release',
             [TABS.TOR]: 'Terms of reference',
             [TABS.PRAI_PARTNERSHIP]: 'PRAI Partnership',
-            [TABS.FOUNDERS]: 'Founding members'
+            
           }).map(([key, label]) => (
             <button
               key={key}
