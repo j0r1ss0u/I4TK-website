@@ -1,25 +1,13 @@
-// =================================================================================
-// 1. IMPORTS & DEPENDENCIES
-// =================================================================================
 import React, { useState, useEffect } from 'react';
 import { GitFork, ArrowLeft } from 'lucide-react';
 import DocumentGenealogy from './components/DocumentGenealogy';
 import { documentsService } from '../../services/documentsService';
 
-// =================================================================================
-// 2. COMPONENT DEFINITION
-// =================================================================================
 const GenealogyPage = ({ tokenId, onBack, currentLang }) => {
-  // -----------------------------------------------------------------------------
-  // 2.1 Hooks & State
-  // -----------------------------------------------------------------------------
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [documentTitle, setDocumentTitle] = useState('');
 
-  // -----------------------------------------------------------------------------
-  // 2.2 Effects
-  // -----------------------------------------------------------------------------
   useEffect(() => {
     const fetchDocumentTitle = async () => {
       if (!tokenId) {
@@ -46,12 +34,9 @@ const GenealogyPage = ({ tokenId, onBack, currentLang }) => {
     fetchDocumentTitle();
   }, [tokenId]);
 
-  // -----------------------------------------------------------------------------
-  // 2.3 Render Helpers
-  // -----------------------------------------------------------------------------
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="w-full px-4 py-4">
         <div className="bg-red-50 border-l-4 border-red-400 p-4">
           <div className="flex">
             <div className="ml-3">
@@ -68,49 +53,54 @@ const GenealogyPage = ({ tokenId, onBack, currentLang }) => {
     );
   }
 
-  // -----------------------------------------------------------------------------
-  // 2.4 Main Render
-  // -----------------------------------------------------------------------------
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white/50 backdrop-blur-sm rounded-lg shadow">
-        {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <GitFork className="w-6 h-6 text-gray-500" />
-              <div>
-                <h1 className="text-2xl font-serif">
-                  {currentLang === 'en' ? 'Arbre de citations' : 'Citation tree'}
-                </h1>
-                {documentTitle && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    {currentLang === 'fr' ? 'Document : ' : 'Document: '}{documentTitle}
-                  </p>
-                )}
+    <div className="w-full">
+      {/* Header - Sticky on top */}
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-2 md:px-6 md:py-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <GitFork className="w-5 h-5 md:w-6 md:h-6 text-gray-500" />
+            <h1 className="text-xl md:text-2xl font-serif">
+              {currentLang === 'en' ? 'Arbre de citations' : 'Citation tree'}
+            </h1>
+          </div>
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 text-sm md:text-base text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-100 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {currentLang === 'en' ? 'Retour à la bibliothèque' : 'Back to Library'}
+          </button>
+        </div>
+      </div>
+
+      {/* Genealogy Visualization - Full width */}
+      <div className="w-full h-[50vh] md:h-[60vh] bg-white/50">
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+          </div>
+        ) : (
+          <DocumentGenealogy 
+            tokenId={tokenId} 
+            currentLang={currentLang}
+          />
+        )}
+      </div>
+
+      {/* Document Details Panel - Below visualization */}
+      <div className="px-4 py-4 md:px-6 md:py-6 bg-white/80">
+        <div className="max-w-3xl mx-auto">
+          {documentTitle && (
+            <div className="space-y-4">
+              <h2 className="text-lg md:text-xl font-medium text-gray-900">
+                {currentLang === 'fr' ? 'Détails du document' : 'Document Details'}
+              </h2>
+              <div className="bg-white rounded-lg shadow p-4">
+                <h3 className="font-medium text-gray-900">{documentTitle}</h3>
+                {/* Add more document details here as needed */}
               </div>
             </div>
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 rounded-md hover:bg-gray-100 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              {currentLang === 'en' ? 'Retour à la bibliothèque' : 'Back to Library'}
-            </button>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="p-6">
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-            </div>
-          ) : (
-            <DocumentGenealogy 
-              tokenId={tokenId} 
-              currentLang={currentLang}
-            />
           )}
         </div>
       </div>

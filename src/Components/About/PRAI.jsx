@@ -12,7 +12,7 @@ const PRAI = () => {
           {/* Universidad de Chile Block */}
           <div className="bg-white/50 rounded-lg p-6">
             <div className="flex gap-6">
-              <img src="public/assets/PRAI/universidad de Chile.png" alt="Universidad de Chile logo" className="w-48 h-48 object-contain" />
+              <img src="/assets/PRAI/universidad de Chile.png" alt="Universidad de Chile logo" className="w-48 h-48 object-contain" />
               <div>
                 <h3 className="font-semibold text-xl mb-4">
                   Un análisis sobre la desinformación en procesos electorales en Chile / Analyses of disinformation during electoral processes
@@ -36,7 +36,7 @@ const PRAI = () => {
           {/* CELE Block */}
           <div className="bg-white/50 rounded-lg p-6">
             <div className="flex gap-6 mb-4">
-              <img src="public/assets/PRAI/cele uni parlermo logo rond.jpg" alt="CELE logo" className="w-48 h-24 object-contain" />
+              <img src="/assets/PRAI/cele uni parlermo logo rond.jpg" alt="CELE logo" className="w-48 h-24 object-contain" />
               <h3 className="font-semibold text-xl">
                 Desinformación digital : la nueva normalidad? Estudios desde Argentina / Digital disinformation : the New normal?
               </h3>
@@ -64,7 +64,7 @@ const PRAI = () => {
           {/* PRAI Block */}
           <div className="bg-white/50 rounded-lg p-6">
             <div className="flex gap-6 mb-4">
-              <img src="public/assets/PRAI/PRAI.jpg" alt="PRAI Open Session" className="w-64 h-32 object-contain" />
+              <img src="/assets/PRAI/PRAI.jpg" alt="PRAI Open Session" className="w-64 h-32 object-contain" />
               <div>
                 <h3 className="font-semibold text-xl mb-2">
                   Jornada abierta PRAI

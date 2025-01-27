@@ -1,24 +1,19 @@
-// ================ IMPORTS ================
 import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { chatService } from '../../services/chatService';
 
-// ================ UTILS ================
 const formatAuthors = (authors) => {
   if (Array.isArray(authors)) return authors.join(', ');
   if (typeof authors === 'string') return authors;
   return 'N/A';
 };
 
-// ================ COMPONENT ================
 const LibraryChat = ({ currentLang = 'en' }) => {
-  // ===== STATE =====
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // ===== HANDLERS =====
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -48,12 +43,9 @@ const LibraryChat = ({ currentLang = 'en' }) => {
     }
   };
 
-  // ===== RENDER =====
   return (
     <div className="container mx-auto max-w-4xl p-4">
-      <div className="flex flex-col h-[600px] bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
-
-        {/* Message List */}
+      <div className="flex flex-col h-[400px] md:h-[600px] bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
         <div className="flex-1 overflow-y-auto p-4">
           {messages.map((message, index) => (
             <div
@@ -98,7 +90,6 @@ const LibraryChat = ({ currentLang = 'en' }) => {
           ))}
         </div>
 
-        {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-4 border-t">
           <div className="flex gap-2">
             <input
