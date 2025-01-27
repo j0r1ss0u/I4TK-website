@@ -83,7 +83,7 @@ const NetworkPublications = ({
   const handleViewDetails = (doc) => {
     const cid = getDocumentCid(doc);
     if (cid) {
-      window.open(`https://ipfs.io/ipfs/${cid}`, '_blank');
+      window.open(`https://nftstorage.link/ipfs/${cid}`, '_blank');
     } else {
       console.error('Invalid or missing IPFS CID:', doc);
     }
