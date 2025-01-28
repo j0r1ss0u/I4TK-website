@@ -14,6 +14,7 @@ import {
   orderBy,
   limit 
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth'; // Ajout de l'import pour l'auth
 
 // =============== CONFIGURATION ===============
 const firebaseConfig = {
@@ -28,10 +29,12 @@ const firebaseConfig = {
 // =============== INITIALIZATION ===============
 let app;
 let db;
+let auth; // Déclaration de auth
 
 try {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
+  auth = getAuth(app); // Initialisation de auth
   console.log('Firebase initialized successfully');
 } catch (error) {
   console.error('Firebase initialization error:', error);
@@ -231,4 +234,4 @@ export const testFirebaseConnection = async () => {
 };
 
 // =============== EXPORTS ===============
-export { db };
+export { db, auth };
