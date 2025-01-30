@@ -19,7 +19,8 @@ import {
   Timestamp,
   getDoc,
   orderBy,
-  setDoc
+  setDoc,
+  runTransaction
 } from 'firebase/firestore';
 import { 
   updatePassword,
@@ -115,9 +116,9 @@ export const invitationsService = {
 
   // ------- Acceptation d'une invitation -------
   async acceptInvitation(invitationId, userData) {
-    console.log('Acceptation de l\'invitation:', invitationId, userData);
+    console.log('Début acceptInvitation avec:', { invitationId, userData });
     try {
-      // 1. Récupération de l'invitation
+      // 1. Récupération et validation de l'invitation
       const invitationRef = doc(db, 'invitations', invitationId);
       const invitationDoc = await getDoc(invitationRef);
 
@@ -147,36 +148,48 @@ export const invitationsService = {
         throw new Error('Cette invitation ne correspond pas à votre email');
       }
 
-      // 4. Stockage des données d'invitation pour la réutilisation
+      // 4. Préparation des données d'invitation
       const invitationData = {
         id: invitationId,
         role: invitation.role,
         organization: invitation.organization,
         email: invitation.email
       };
-      localStorage.setItem('pendingInvitationData', JSON.stringify(invitationData));
 
-      // 5. Mise à jour du mot de passe
+      // 5. Utilisation d'une transaction Firestore
+      await runTransaction(db, async (transaction) => {
+        // 5.1 Création/MAJ du profil utilisateur
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userData = {
+          email: currentUser.email,
+          role: invitation.role,
+          organization: invitation.organization,
+          status: 'active',
+          emailVerified: true,
+          invitationId: invitationId,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        };
+
+        transaction.set(userRef, userData);
+
+        // 5.2 Mise à jour du statut de l'invitation
+        transaction.update(invitationRef, {
+          status: 'accepted',
+          acceptedAt: serverTimestamp()
+        });
+      });
+
+      // 6. Mise à jour du mot de passe (après la transaction réussie)
       try {
         await updatePassword(currentUser, userData.password);
       } catch (error) {
         console.error('Erreur lors de la mise à jour du mot de passe:', error);
-        throw new Error('Échec de la mise à jour du mot de passe');
+        // Ne pas throw ici, car le profil est déjà créé
       }
 
-      // 6. Mise à jour du statut de l'invitation
-      await updateDoc(invitationRef, {
-        status: 'accepted',
-        acceptedAt: serverTimestamp()
-      });
-
-      // 7. Initialisation du profil utilisateur avec les données de l'invitation
-      try {
-        await initializeUserRole(currentUser.uid, currentUser.email, invitationData);
-      } catch (error) {
-        console.error('Erreur lors de l\'initialisation du profil:', error);
-        throw new Error('Échec de l\'initialisation du profil utilisateur');
-      }
+      // 7. Stockage temporaire des données pour AuthContext
+      localStorage.setItem('pendingInvitationData', JSON.stringify(invitationData));
 
       console.log('Invitation acceptée avec succès');
       return {
@@ -186,7 +199,7 @@ export const invitationsService = {
       };
 
     } catch (error) {
-      console.error('Erreur lors de l\'acceptation de l\'invitation:', error);
+      console.error('Erreur complète dans acceptInvitation:', error);
       throw error;
     }
   },

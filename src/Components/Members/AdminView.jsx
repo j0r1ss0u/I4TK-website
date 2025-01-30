@@ -14,6 +14,8 @@ import { membersService } from '../../services/membersService';
 import { usersService } from '../../services/usersService';
 import { invitationsService } from '../../services/invitationsService';
 import { createPortal } from 'react-dom';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 // Composant Notification :
 const NotificationPortal = ({ notification }) => {
@@ -161,10 +163,30 @@ const AdminView = () => {
   // Gestion des utilisateurs
   const handleUpdateUserRole = async (uid, newRole) => {
     try {
-      await usersService.updateUser(uid, { role: newRole });
-      loadData(); // Recharger les données
+      console.log('Tentative de mise à jour du rôle:', { uid, newRole });
+
+      // Récupérer les données utilisateur actuelles
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        throw new Error('Utilisateur non trouvé');
+      }
+
+      // Mise à jour dans Firestore
+      await updateDoc(userRef, {
+        role: newRole,
+        updatedAt: serverTimestamp()
+      });
+
+      // Recharger les données
+      await loadData();
+
+      showNotification(`Rôle mis à jour avec succès: ${newRole}`, 'success');
+
     } catch (error) {
-      console.error('Error updating user role:', error);
+      console.error('Erreur lors de la mise à jour du rôle:', error);
+      showNotification('Erreur lors de la mise à jour du rôle', 'error');
     }
   };
 
