@@ -100,19 +100,16 @@ function AppContent() {
 
   // ===== Email Sign In Link Handler =====
   useEffect(() => {
-    // Vérifier si l'URL contient un lien de connexion
     if (isSignInWithEmailLink(auth, window.location.href)) {
       let email = window.localStorage.getItem('emailForInvitation');
       if (!email) {
         email = window.prompt('Veuillez saisir votre email pour confirmation');
       }
 
-      // Terminer le processus de connexion
       signInWithEmailLink(auth, email, window.location.href)
         .then(() => {
           window.localStorage.removeItem('emailForInvitation');
-          // Rediriger vers la page de finalisation d'invitation
-          setCurrentPage('finalize-invitation');
+          setCurrentPage('finalize-invitation');  // Utilisation du système de pages existant
         })
         .catch((error) => {
           console.error('Error completing sign-in:', error);
@@ -131,18 +128,6 @@ function AppContent() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Chargement...</p>
-      </div>
-    );
-  }
-
-  // ===== Finalize Invitation Check =====
-  // NOTE: Cette partie est nouvelle
-  if (window.location.pathname === '/finalize-invitation') {
-    return (
-      <div className="min-h-screen relative overflow-x-hidden">
-        <div className="relative z-10 w-full">
-          <FinalizeInvitation setCurrentPage={setCurrentPage} />
-        </div>
       </div>
     );
   }
@@ -182,6 +167,9 @@ function AppContent() {
             />
           )}
           {currentPage === "about" && <AboutPage currentLang={currentLang} />}
+          {currentPage === "finalize-invitation" && (
+            <FinalizeInvitation setCurrentPage={setCurrentPage} />
+          )}
           {currentPage === "chat" && user?.role === "admin" && (
             <LibraryChat currentLang={currentLang} />
           )}

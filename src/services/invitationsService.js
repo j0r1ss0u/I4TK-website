@@ -22,7 +22,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { 
-  createUserWithEmailAndPassword,
+  updatePassword,
   sendEmailVerification
 } from 'firebase/auth';
 
@@ -134,24 +134,23 @@ export const invitationsService = {
         throw new Error('Cette invitation a expiré');
       }
 
-      // Créer le compte utilisateur dans Firebase Auth
-      const { user } = await createUserWithEmailAndPassword(
-        auth,
-        invitation.email,
-        userData.password
-      );
+      // L'utilisateur est déjà authentifié à ce stade
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('Utilisateur non connecté');
+      }
 
-      // Envoyer l'email de vérification
-      await sendEmailVerification(user);
+      // Mettre à jour le mot de passe
+      await updatePassword(currentUser, userData.password);
 
       // Créer le profil utilisateur dans Firestore
-      const userRef = doc(db, 'users', user.uid);
+      const userRef = doc(db, 'users', currentUser.uid);
       await setDoc(userRef, {
         email: invitation.email,
         role: invitation.role,
         organization: invitation.organization,
         status: 'active',
-        emailVerified: false,
+        emailVerified: true,
         invitationId: invitationId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -164,8 +163,8 @@ export const invitationsService = {
       });
 
       return {
-        uid: user.uid,
-        email: user.email
+        uid: currentUser.uid,
+        email: currentUser.email
       };
     } catch (error) {
       console.error('Erreur lors de l\'acceptation de l\'invitation:', error);

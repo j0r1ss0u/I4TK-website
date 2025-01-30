@@ -63,10 +63,14 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
       }
 
       await invitationsService.acceptInvitation(invitation.id, { password });
+
+      // Mise à jour de l'URL sans recharger la page
+      window.history.pushState({}, '', '/');
+      // Redirection vers la home page via currentPage
       setCurrentPage('home');
-      window.location.href = '/login';
     } catch (err) {
       setError(err.message);
+    } finally {
       setIsSubmitting(false);
     }
   };
