@@ -7,7 +7,7 @@ import { sendSignInLinkToEmail, getAuth } from 'firebase/auth';
 
 // Configuration des actions d'email
 const actionCodeSettings = {
-  url: 'https://www.i4tknowledge.org/finalize-invitation',
+  url: 'https://www.i4tknowledge.org',
   handleCodeInApp: true,
   };
 
