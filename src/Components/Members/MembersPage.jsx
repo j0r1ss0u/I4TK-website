@@ -31,7 +31,7 @@ const ViewSelector = ({ viewMode, setViewMode, userRole }) => {
       >
         Members
       </button>
-      {userRole === 'admin' && (
+      {(userRole === 'admin' || userRole === 'validator') && (
         <button
           onClick={() => setViewMode('admin')}
           className={`w-full sm:w-auto px-3 py-2 rounded ${viewMode === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100'}`}
@@ -57,7 +57,6 @@ const ViewSelector = ({ viewMode, setViewMode, userRole }) => {
 const MembersPageWrapper = ({ initialView }) => {
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState(initialView || 'members');
-
   console.log('MembersPageWrapper - user:', user);  // Debug log
   console.log('MembersPageWrapper - user.role:', user?.role);  // Debug log
 
@@ -69,7 +68,7 @@ const MembersPageWrapper = ({ initialView }) => {
           <ViewSelector viewMode={viewMode} setViewMode={setViewMode} userRole={user?.role} />
         </div>
         {viewMode === 'members' && <MapView />}
-        {viewMode === 'admin' && user?.role === 'admin' && <AdminView />}
+        {viewMode === 'admin' && (user?.role === 'admin' || user?.role === 'validator') && <AdminView />}
         {viewMode === 'governance' && (user?.role === 'admin' || user?.role === 'member') && <GovernanceView />}
       </div>
     </MembersProvider>

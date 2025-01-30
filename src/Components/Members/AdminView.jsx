@@ -17,6 +17,20 @@ import { createPortal } from 'react-dom';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
+// Constantes pour les rôles
+const ROLES = {
+  ADMIN: 'admin',
+  VALIDATOR: 'validator',
+  MEMBER: 'member'
+};
+
+// Constantes pour les tabs
+const TABS = {
+  ORGANIZATIONS: 'organizations',
+  USERS: 'users',
+  INVITATIONS: 'invitations'
+};
+
 // Composant Notification :
 const NotificationPortal = ({ notification }) => {
   if (!notification) return null;
@@ -78,6 +92,18 @@ const AdminView = () => {
     }, 5000);
   };
 
+  // Vérification des permissions
+  const isAdmin = currentUser?.role === ROLES.ADMIN;
+  const isValidator = currentUser?.role === ROLES.VALIDATOR;
+
+  // Détermination de l'onglet initial
+  useEffect(() => {
+    if (isValidator) {
+      setActiveTab(TABS.INVITATIONS);
+    }
+  }, [isValidator]);
+
+ 
   // Chargement initial des données
   useEffect(() => {
     loadData();
@@ -204,20 +230,22 @@ const AdminView = () => {
   const handleInviteUser = async (e) => {
     e.preventDefault();
     try {
-      await invitationsService.createInvitation({
+      const invitationData = {
         email: inviteForm.email,
-        organization: inviteForm.organization,
+        organization: isValidator ? currentUser.organization : inviteForm.organization,
         role: inviteForm.role,
         createdBy: currentUser.uid
-      });
+      };
+
+      await invitationsService.createInvitation(invitationData);
       showNotification('Invitation envoyée avec succès');
-      await loadData(); // pour recharger la liste
-      setInviteForm({  // reset du formulaire
+      await loadData();
+      setInviteForm({
         email: '',
-        organization: '',
+        organization: isValidator ? currentUser.organization : '',
         role: 'member'
       });
-      setShowUserForm(false); // fermeture du formulaire
+      setShowUserForm(false);
     } catch (error) {
       console.error('Error inviting user:', error);
       showNotification(error.message, 'error');
@@ -228,98 +256,129 @@ const AdminView = () => {
   const getFilteredData = () => {
     const searchLower = searchTerm.toLowerCase();
 
-    if (activeTab === 'organizations') {
+    if (activeTab === TABS.ORGANIZATIONS) {
+      if (isValidator) return []; // Les validators ne voient pas les organisations
       return members.filter(member => (
         member.name?.toLowerCase().includes(searchLower) ||
         member.city?.toLowerCase().includes(searchLower) ||
         member.country?.toLowerCase().includes(searchLower) ||
         member.category?.toLowerCase().includes(searchLower)
       ));
-    } else if (activeTab === 'users') {
+    } else if (activeTab === TABS.USERS) {
+      if (isValidator) return []; // Les validators ne voient pas les utilisateurs
       return users.filter(user => (
         user.email?.toLowerCase().includes(searchLower) ||
         user.role?.toLowerCase().includes(searchLower)
       ));
-      } else {
-        return pendingInvitations.filter(invitation => (
-          invitation.email.toLowerCase().includes(searchLower) ||
-          members.find(m => m.id === invitation.organizationId)?.name.toLowerCase().includes(searchLower)
-        ));
-      }
-  };
+    } else {
+      // Filtre les invitations
+      let filteredInvitations = pendingInvitations;
 
+      // Si validator, ne montrer que les invitations de son organisation
+      if (isValidator) {
+        filteredInvitations = pendingInvitations.filter(
+          invitation => invitation.organization === currentUser.organization
+        );
+      }
+
+      return filteredInvitations.filter(invitation => (
+        invitation.email.toLowerCase().includes(searchLower) ||
+        invitation.organization.toLowerCase().includes(searchLower)
+      ));
+    }
+  };
+  
   return (
     <>
       {notification && <NotificationPortal notification={notification} />}
       <div className="space-y-6">
+        
         {/* En-tête avec statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center">
-              <Building2 className="h-8 w-8 text-amber-600" />
-              <div className="ml-4">
-                <h3 className="text-lg font-medium">Organizations</h3>
-                <p className="text-2xl font-semibold">{members.length}</p>
+        {isAdmin ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center">
+                <Building2 className="h-8 w-8 text-amber-600" />
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium">Organizations</h3>
+                  <p className="text-2xl font-semibold">{members.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-amber-600" />
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium">Users</h3>
+                  <p className="text-2xl font-semibold">{users.length}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center">
+                <Mail className="h-8 w-8 text-amber-600" />
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium">Pending Invites</h3>
+                  <p className="text-2xl font-semibold">{pendingInvitations.length}</p>
+                </div>
               </div>
             </div>
           </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <Users className="h-8 w-8 text-amber-600" />
-            <div className="ml-4">
-              <h3 className="text-lg font-medium">Users</h3>
-              <p className="text-2xl font-semibold">{users.length}</p>
+        ) : isValidator && (
+          <div className="grid grid-cols-1 gap-4">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <div className="flex items-center">
+                <Mail className="h-8 w-8 text-amber-600" />
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium">Pending Invites for {currentUser.organization}</h3>
+                  <p className="text-2xl font-semibold">
+                    {pendingInvitations.filter(inv => inv.organization === currentUser.organization).length}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <Mail className="h-8 w-8 text-amber-600" />
-            <div className="ml-4">
-              <h3 className="text-lg font-medium">Pending Invites</h3>
-              <p className="text-2xl font-semibold">{pendingInvitations.length}</p>
-            </div>
-          </div>
+        {/* Onglets */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            {isAdmin && (
+              <>
+                <button
+                  onClick={() => setActiveTab(TABS.ORGANIZATIONS)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === TABS.ORGANIZATIONS
+                      ? 'border-amber-500 text-amber-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Organizations
+                </button>
+                <button
+                  onClick={() => setActiveTab(TABS.USERS)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === TABS.USERS
+                      ? 'border-amber-500 text-amber-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Users
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setActiveTab(TABS.INVITATIONS)}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === TABS.INVITATIONS
+                  ? 'border-amber-500 text-amber-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Invitations
+            </button>
+          </nav>
         </div>
-      </div>
-
-      {/* Onglets */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('organizations')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'organizations'
-                ? 'border-amber-500 text-amber-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Organizations
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'users'
-                ? 'border-amber-500 text-amber-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Users
-          </button>
-          <button
-            onClick={() => setActiveTab('invitations')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'invitations'
-                ? 'border-amber-500 text-amber-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Invitations
-          </button>
-        </nav>
-      </div>
 
       {/* Barre d'outils */}
       <div className="flex justify-between items-center">
@@ -689,77 +748,88 @@ const AdminView = () => {
       )}
 
         {/* Modal formulaire utilisateur */}
-             {showUserForm && (
-               <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
-                 <div className="bg-white rounded-lg p-6 max-w-md w-full m-4">
-                   <div className="flex justify-between items-center mb-4">
-                     <h3 className="text-lg font-medium text-gray-900">
-                       Invite New User
-                     </h3>
-                     <button onClick={() => setShowUserForm(false)}>
-                       <X className="h-5 w-5 text-gray-400 hover:text-gray-500" />
-                     </button>
-                   </div>
+        {showUserForm && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full m-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Invite New User
+                </h3>
+                <button onClick={() => setShowUserForm(false)}>
+                  <X className="h-5 w-5 text-gray-400 hover:text-gray-500" />
+                </button>
+              </div>
 
-                   <form onSubmit={handleInviteUser} className="space-y-4">
-                     <div>
-                       <label className="block text-sm font-medium text-gray-700">Email</label>
-                       <input
-                         type="email"
-                         value={inviteForm.email}
-                         onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
-                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                         required
-                       />
-                     </div>
+              <form onSubmit={handleInviteUser} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    value={inviteForm.email}
+                    onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                    required
+                  />
+                </div>
 
-                     <div>
-                       <label className="block text-sm font-medium text-gray-700">Organization</label>
-                       <select
-                         value={inviteForm.organization}
-                         onChange={(e) => setInviteForm({...inviteForm, organization: e.target.value})}
-                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                         required
-                       >
-                         <option value="">Select an organization</option>
-                         {members.map(org => (
-                           <option key={org.id} value={org.name}>{org.name}</option>  // Changé de org.id à org.name
-                         ))}
-                       </select>
-                     </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Organization</label>
+                  {isValidator ? (
+                    // Pour les validators : champ en lecture seule avec leur organisation
+                    <input
+                      type="text"
+                      value={currentUser.organization}
+                      className="mt-1 block w-full rounded-md bg-gray-100 border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                      disabled
+                    />
+                  ) : (
+                    // Pour les admins : sélection de l'organisation
+                    <select
+                      value={inviteForm.organization}
+                      onChange={(e) => setInviteForm({...inviteForm, organization: e.target.value})}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                      required
+                    >
+                      <option value="">Select an organization</option>
+                      {members.map(org => (
+                        <option key={org.id} value={org.name}>{org.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
 
-                     <div>
-                       <label className="block text-sm font-medium text-gray-700">Role</label>
-                       <select
-                         value={inviteForm.role}
-                         onChange={(e) => setInviteForm({...inviteForm, role: e.target.value})}
-                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
-                         required
-                       >
-                         <option value="member">Member</option>
-                         <option value="validator">Organization Validator</option>
-                       </select>
-                     </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <select
+                    value={inviteForm.role}
+                    onChange={(e) => setInviteForm({...inviteForm, role: e.target.value})}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                    required
+                  >
+                    <option value="member">Member</option>
+                    {isAdmin && <option value="validator">Organization Validator</option>}
+                  </select>
+                </div>
 
-                     <div className="flex justify-end space-x-3 mt-6">
-                       <button
-                         type="button"
-                         onClick={() => setShowUserForm(false)}
-                         className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                       >
-                         Cancel
-                       </button>
-                       <button
-                         type="submit"
-                         className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700"
-                       >
-                         Send Invitation
-                       </button>
-                     </div>
-                   </form>
-                 </div>
-               </div>
-             )}
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowUserForm(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700"
+                  >
+                    Send Invitation
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
              {/* NotificationPortal est géré séparément via createPortal */}
              <NotificationPortal notification={notification} />
