@@ -462,6 +462,7 @@ const AdminView = () => {
                       className="text-sm text-gray-900 border border-gray-300 rounded px-2 py-1"
                     >
                       <option value="member">Member</option>
+                      <option value="validator">Organization Validator</option>
                       <option value="admin">Admin</option>
                     </select>
                   </td>

@@ -42,39 +42,93 @@ export const AuthProvider = ({ children }) => {
   // ------- Observer Firebase Auth -------
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      console.log('Changement d\'état d\'authentification:', firebaseUser?.email);
       try {
         if (firebaseUser) {
           // Support des comptes de test hardcodés
           if (firebaseUser.email === 'admin@i4tk.org') {
             setUser({ uid: 'admin', role: 'admin', email: firebaseUser.email });
             showNotification('Connecté en tant qu\'administrateur');
-          } else if (firebaseUser.email === 'member@i4tk.org') {
-            setUser({ uid: 'member', role: 'member', email: firebaseUser.email });
-            showNotification('Connecté en tant que membre');
-          } else {
-            // Récupérer les données utilisateur depuis Firestore
-            const userDoc = await firebaseAuthService.getUserData(firebaseUser.uid);
+            setLoading(false);
+            return;
+          }
+
+          // Vérifier s'il y a des données d'invitation en attente
+          const pendingInvitationData = localStorage.getItem('pendingInvitationData');
+
+          if (pendingInvitationData) {
+            console.log('Données d\'invitation trouvées:', pendingInvitationData);
+            const invitationData = JSON.parse(pendingInvitationData);
+
+            // Initialiser/mettre à jour le profil avec les données d'invitation
+            const userDoc = await firebaseAuthService.initializeUserRole(
+              firebaseUser.uid, 
+              firebaseUser.email,
+              invitationData
+            );
+
+            // Nettoyer les données temporaires
+            localStorage.removeItem('pendingInvitationData');
+
+            // Mettre à jour l'état utilisateur avec les données complètes
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               emailVerified: firebaseUser.emailVerified,
+              role: invitationData.role,
+              organization: invitationData.organization,
               ...userDoc
             });
+
+            showNotification(`Bienvenue ${
+              invitationData.role === 'validator' ? 'validateur' : 'membre'
+            } de ${invitationData.organization}`);
+
+          } else {
+            // Récupération standard des données utilisateur
+            console.log('Récupération des données utilisateur standard');
+            const userDoc = await firebaseAuthService.getUserData(firebaseUser.uid);
+
+            if (userDoc) {
+              setUser({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                emailVerified: firebaseUser.emailVerified,
+                role: userDoc.role,
+                organization: userDoc.organization,
+                ...userDoc
+              });
+
+              showNotification(`Bienvenue ${
+                userDoc.role === 'validator' ? 'validateur' : 'membre'
+              }${userDoc.organization ? ` de ${userDoc.organization}` : ''}`);
+            } else {
+              console.error('Données utilisateur non trouvées');
+              setUser(null);
+              showNotification('Erreur de chargement du profil', 'error');
+            }
           }
         } else {
+          // Déconnexion : nettoyer l'état
+          console.log('Déconnexion détectée');
           setUser(null);
+          localStorage.removeItem('pendingInvitationData');
         }
       } catch (error) {
         console.error('Erreur lors du changement d\'état d\'auth:', error);
         setUser(null);
+        showNotification('Erreur lors de la connexion', 'error');
       } finally {
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('Nettoyage de l\'observer Firebase Auth');
+      unsubscribe();
+    };
   }, []);
-
+  
   // ------- Méthodes d'authentification -------
 
   // Connexion

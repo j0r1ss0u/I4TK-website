@@ -17,37 +17,62 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 
 export const firebaseAuthService = {
   // ------- Initialisation du profil utilisateur -------
-  async initializeUserRole(userId, email) {
-    console.log('Initialisation du rôle utilisateur pour:', email);
+  async initializeUserRole(userId, email, invitationData = null) {
+    console.log('Initialisation du rôle utilisateur pour:', email, 'avec données:', invitationData);
     try {
-      // Référence au document utilisateur
       const userRef = doc(db, 'users', userId);
-
-      // Vérifier si le document existe déjà
       const userDoc = await getDoc(userRef);
 
-      if (!userDoc.exists()) {
-        // Données de base pour un nouvel utilisateur
-        const userData = {
-          email: email,
-          role: 'member', // Rôle par défaut
-          status: 'active',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
-
-        // Créer le document utilisateur
-        await setDoc(userRef, userData);
-        console.log('Profil utilisateur initialisé avec succès');
-
-        return userData;
-      } else {
-        console.log('Le profil utilisateur existe déjà');
+      // Si l'utilisateur existe déjà
+      if (userDoc.exists()) {
+        console.log('Utilisateur existant, mise à jour avec données invitation:', invitationData);
+        if (invitationData) {
+          await updateDoc(userRef, {
+            role: invitationData.role,
+            organization: invitationData.organization,
+            updatedAt: serverTimestamp(),
+            invitationId: invitationData.id
+          });
+          return {
+            ...userDoc.data(),
+            role: invitationData.role,
+            organization: invitationData.organization
+          };
+        }
         return userDoc.data();
       }
+
+      // Création d'un nouvel utilisateur
+      const userData = {
+        email,
+        emailVerified: true,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      // Si on a des données d'invitation, on les utilise
+      if (invitationData) {
+        console.log('Création utilisateur avec données invitation:', invitationData);
+        Object.assign(userData, {
+          role: invitationData.role,
+          organization: invitationData.organization,
+          invitationId: invitationData.id
+        });
+      } else {
+        // Rôle par défaut si pas d'invitation
+        console.log('Création utilisateur avec rôle par défaut');
+        userData.role = 'member';
+      }
+
+      // Création du document utilisateur
+      await setDoc(userRef, userData);
+      console.log('Profil utilisateur créé avec succès:', userData);
+
+      return userData;
     } catch (error) {
       console.error('Erreur lors de l\'initialisation du profil utilisateur:', error);
-      throw error;
+      throw new Error('Échec de l\'initialisation du profil utilisateur');
     }
   },
 

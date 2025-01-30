@@ -115,10 +115,9 @@ export const invitationsService = {
 
   // ------- Acceptation d'une invitation -------
   async acceptInvitation(invitationId, userData) {
+    console.log('Acceptation de l\'invitation:', invitationId, userData);
     try {
-      console.log('Acceptation de l\'invitation:', invitationId);
-
-      // Récupérer l'invitation
+      // 1. Récupération de l'invitation
       const invitationRef = doc(db, 'invitations', invitationId);
       const invitationDoc = await getDoc(invitationRef);
 
@@ -128,44 +127,64 @@ export const invitationsService = {
 
       const invitation = invitationDoc.data();
 
-      // Vérifier que l'invitation n'est pas expirée
+      // 2. Vérifications de validité
+      if (invitation.status !== 'pending') {
+        throw new Error('Cette invitation n\'est plus valide');
+      }
+
       if (invitation.expiresAt.toDate() < new Date()) {
         await updateDoc(invitationRef, { status: 'expired' });
         throw new Error('Cette invitation a expiré');
       }
 
-      // L'utilisateur est déjà authentifié à ce stade
+      // 3. Vérification de l'utilisateur connecté
       const currentUser = auth.currentUser;
       if (!currentUser) {
         throw new Error('Utilisateur non connecté');
       }
 
-      // Mettre à jour le mot de passe
-      await updatePassword(currentUser, userData.password);
+      if (currentUser.email !== invitation.email) {
+        throw new Error('Cette invitation ne correspond pas à votre email');
+      }
 
-      // Créer le profil utilisateur dans Firestore
-      const userRef = doc(db, 'users', currentUser.uid);
-      await setDoc(userRef, {
-        email: invitation.email,
+      // 4. Stockage des données d'invitation pour la réutilisation
+      const invitationData = {
+        id: invitationId,
         role: invitation.role,
         organization: invitation.organization,
-        status: 'active',
-        emailVerified: true,
-        invitationId: invitationId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+        email: invitation.email
+      };
+      localStorage.setItem('pendingInvitationData', JSON.stringify(invitationData));
 
-      // Mettre à jour le statut de l'invitation
+      // 5. Mise à jour du mot de passe
+      try {
+        await updatePassword(currentUser, userData.password);
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du mot de passe:', error);
+        throw new Error('Échec de la mise à jour du mot de passe');
+      }
+
+      // 6. Mise à jour du statut de l'invitation
       await updateDoc(invitationRef, {
         status: 'accepted',
         acceptedAt: serverTimestamp()
       });
 
+      // 7. Initialisation du profil utilisateur avec les données de l'invitation
+      try {
+        await initializeUserRole(currentUser.uid, currentUser.email, invitationData);
+      } catch (error) {
+        console.error('Erreur lors de l\'initialisation du profil:', error);
+        throw new Error('Échec de l\'initialisation du profil utilisateur');
+      }
+
+      console.log('Invitation acceptée avec succès');
       return {
         uid: currentUser.uid,
-        email: currentUser.email
+        email: currentUser.email,
+        ...invitationData
       };
+
     } catch (error) {
       console.error('Erreur lors de l\'acceptation de l\'invitation:', error);
       throw error;
