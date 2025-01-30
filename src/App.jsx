@@ -26,7 +26,9 @@ import LibraryPage from "./Components/Library/LibraryPage";
 import { ProtectedForumPage } from "./Components/Forum/ForumPage";
 import GenealogyPage from "./Components/Library/GenealogyPage";
 import LibraryChat from "./Components/Library/LibraryChat";
-
+import FinalizeInvitation from './Components/Members/FinalizeInvitation';
+import { auth } from "./services/firebase";
+import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 
 // ================ QUERY CLIENT CONFIGURATION ================
 const queryClient = new QueryClient({
@@ -96,6 +98,28 @@ function AppContent() {
     }
   }, [address]);
 
+  // ===== Email Sign In Link Handler =====
+  useEffect(() => {
+    // Vérifier si l'URL contient un lien de connexion
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      let email = window.localStorage.getItem('emailForInvitation');
+      if (!email) {
+        email = window.prompt('Veuillez saisir votre email pour confirmation');
+      }
+
+      // Terminer le processus de connexion
+      signInWithEmailLink(auth, email, window.location.href)
+        .then(() => {
+          window.localStorage.removeItem('emailForInvitation');
+          // Rediriger vers la page de finalisation d'invitation
+          setCurrentPage('finalize-invitation');
+        })
+        .catch((error) => {
+          console.error('Error completing sign-in:', error);
+        });
+    }
+  }, []);
+  
   // ===== Language Handler =====
   const handleLanguageChange = (newLang) => {
     setCurrentLang(newLang);
@@ -107,6 +131,18 @@ function AppContent() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Chargement...</p>
+      </div>
+    );
+  }
+
+  // ===== Finalize Invitation Check =====
+  // NOTE: Cette partie est nouvelle
+  if (window.location.pathname === '/finalize-invitation') {
+    return (
+      <div className="min-h-screen relative overflow-x-hidden">
+        <div className="relative z-10 w-full">
+          <FinalizeInvitation setCurrentPage={setCurrentPage} />
+        </div>
       </div>
     );
   }
@@ -162,7 +198,6 @@ function AppContent() {
               setSelectedTokenId={setSelectedTokenId}
             />
           )}
-          {/* Ajoutez cette section */}
           {currentPage === "genealogy" && (
             <GenealogyPage 
               currentLang={currentLang}
@@ -171,7 +206,7 @@ function AppContent() {
             />
           )}
           {currentPage === "forum" && <ProtectedForumPage currentLang={currentLang} />}
-          </main>
+        </main>
       </div>
     </div>
   );
