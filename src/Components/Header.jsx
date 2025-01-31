@@ -35,19 +35,33 @@ const LoginButton = () => {
 // =============== NAVIGATION COMPONENT ===============
 const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) => {
   const { user } = useAuth();
+
+  // Définition de la hiérarchie des rôles et leurs accès
+  const ROLE_ACCESS = {
+    admin: ['member', 'admin', 'validator'],
+    validator: ['member', 'validator'],
+    member: ['member'],
+  };
+
+  const getUserAccess = (user) => {
+    if (!user) return [];
+    return ROLE_ACCESS[user.role] || [];
+  };
+
   const navItems = [
     { id: "home", label: "Home", public: true },
     { id: "about", label: "About", public: true },
     { id: "members", label: "Members", public: true },
     { id: "library", label: "Library", public: true },
-    { id: "forum", label: "Forum", requiresAuth: true },
-    { id: "chat", label: "AI Chat", adminOnly: false }
+    { id: "forum", label: "Forum", requiredRole: 'member' },
+    { id: "chat", label: "AI Chat", requiredRole: 'admin' }
   ];
+
+  const userAccess = getUserAccess(user);
 
   const visibleItems = navItems.filter(item => 
     item.public || 
-    (user && item.requiresAuth) || 
-    (user?.role === 'admin' && item.adminOnly)
+    (user && item.requiredRole && userAccess.includes(item.requiredRole))
   );
 
   const handleNavClick = (itemId) => {
@@ -56,6 +70,9 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
       setIsMenuOpen(false);
     }
   };
+
+  // Modification de la partie WalletConnect
+  const showWalletConnect = user && userAccess.includes('member');
 
   return (
     <div className={`${isMobile ? 'flex flex-col space-y-4' : 'flex items-center space-x-8'}`}>
@@ -78,7 +95,7 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
         {user ? (
           <div className={`flex ${isMobile ? 'flex-col space-y-4' : 'items-center space-x-4'}`}>
             <UserProfile />
-            {(user.role === 'member' || user.role === 'admin') && <WalletConnect />}
+            {showWalletConnect && <WalletConnect />}
           </div>
         ) : (
           <LoginButton />

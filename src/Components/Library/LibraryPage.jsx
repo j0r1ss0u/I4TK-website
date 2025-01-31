@@ -30,6 +30,20 @@ const TABS = {
   GENEALOGY: 'genealogy', 
 };
 
+// Hiérarchie des roles
+const ROLE_ACCESS = {
+  admin: ['member', 'admin', 'validator'],
+  validator: ['member', 'validator'],
+  member: ['member'],
+};
+
+const USER_PERMISSIONS = {
+  PEER_REVIEW: 'member',
+  SUBMIT_CONTRIBUTION: 'member', // Nécessite aussi le rôle web3 Contributor
+  IP_MONITORING: 'member',
+  LIBRARIAN_SPACE: 'admin'  // Nécessite aussi le rôle web3 Admin
+};
+
 const LibraryPage = () => {
   // =============== STATES ===============
   const [activeTab, setActiveTab] = useState(TABS.NETWORK_PUBLICATIONS);
@@ -85,11 +99,26 @@ const LibraryPage = () => {
     watch: true
   });
 
-  // =============== AUTHENTICATION STATES ===============
-  const isWebMember = user && (user.role === 'member' || user.role === 'admin');
-  const isWebAdmin = user?.role === 'admin';
+  // =============== ACCESS LOGIC ===============
+  const getUserAccess = (user) => {
+    if (!user) return [];
+    return ROLE_ACCESS[user.role] || [];
+  };
 
-  // =============== REAL-TIME SEARCH ===============
+  const userAccess = getUserAccess(user);
+
+  const hasAccess = (permission) => {
+    return userAccess.includes(USER_PERMISSIONS[permission]);
+  };
+
+  const isWebMember = hasAccess('PEER_REVIEW');
+  const isWebAdmin = userAccess.includes('admin');
+
+  // =============== EFFECTS ===============
+  useEffect(() => {
+    updateWeb3Roles(address);
+  }, [address, hasContributorRole, hasValidatorRole, hasAdminRole]);
+
   useEffect(() => {
     const searchTimeout = setTimeout(async () => {
       if (searchTerm.trim()) {
@@ -109,15 +138,10 @@ const LibraryPage = () => {
       } else {
         setSearchResults([]);
       }
-    }, 300); // Délai de 300ms
+    }, 300);
 
     return () => clearTimeout(searchTimeout);
   }, [searchTerm]);
-
-  // =============== EFFECTS ===============
-  useEffect(() => {
-    updateWeb3Roles(address);
-  }, [address, hasContributorRole, hasValidatorRole, hasAdminRole]);
 
   // =============== HELPER FUNCTIONS ===============
   const updateWeb3Roles = (addr) => {
@@ -142,17 +166,18 @@ const LibraryPage = () => {
       [TABS.NETWORK_PUBLICATIONS]: 'Peer reviews'
     };
 
-    if (web3Roles.isContributor) {
+    if (hasAccess('SUBMIT_CONTRIBUTION') && web3Roles.isContributor) {
       tabs[TABS.SUBMIT_CONTRIBUTION] = 'Submit Contribution';
     }
 
-    if (web3Roles.isAdmin) {
+    if (hasAccess('LIBRARIAN_SPACE') && web3Roles.isAdmin) {
       tabs[TABS.LIBRARIAN_SPACE] = 'Librarian Space';
     }
 
-    if (isWebMember) {
+    if (hasAccess('IP_MONITORING')) {
       tabs[TABS.I4T_AND_I] = 'IP monitoring';
     }
+
     return tabs;
   };
 
@@ -178,6 +203,52 @@ const LibraryPage = () => {
     </div>
   );
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case TABS.SUBMIT_CONTRIBUTION:
+        return hasAccess('SUBMIT_CONTRIBUTION') && web3Roles.isContributor 
+          ? renderSubmitContributionTab()
+          : null;
+
+      case TABS.I4T_AND_I:
+        return hasAccess('IP_MONITORING') 
+          ? renderI4TAndITab()
+          : null;
+
+      case TABS.LIBRARIAN_SPACE:
+        return hasAccess('LIBRARIAN_SPACE') && web3Roles.isAdmin 
+          ? renderLibrarianSpaceTab()
+          : null;
+
+      case TABS.GENEALOGY:
+        return hasAccess('PEER_REVIEW') 
+          ? <GenealogyPage
+              tokenId={selectedTokenId}
+              onBack={() => setActiveTab(TABS.NETWORK_PUBLICATIONS)}
+              currentLang={'fr'}
+            />
+          : null;
+
+      default:
+        return (
+          <NetworkPublications
+            isWeb3Validator={web3Roles.isValidator}
+            isWeb3Admin={web3Roles.isAdmin}
+            isWebMember={hasAccess('PEER_REVIEW')}
+            isWebAdmin={hasAccess('LIBRARIAN_SPACE')}
+            address={address}
+            searchTerm={searchTerm}
+            searchResults={searchResults}
+            isSearching={isSearching}
+            error={error}
+            setCurrentPage={setActiveTab}
+            setSelectedTokenId={setSelectedTokenId}
+          />
+        );
+    }
+  };
+
+  // =============== RENDER ===============
   return (
     <div className="bg-transparent">
       <div className="relative">
@@ -238,40 +309,7 @@ const LibraryPage = () => {
               </div>
 
               <div className="mt-8">
-                {(() => {
-      switch (activeTab) {
-        case TABS.SUBMIT_CONTRIBUTION:
-          return web3Roles.isContributor && renderSubmitContributionTab();
-        case TABS.I4T_AND_I:
-          return isWebMember && renderI4TAndITab();
-        case TABS.LIBRARIAN_SPACE:
-          return web3Roles.isAdmin && renderLibrarianSpaceTab();
-        case TABS.GENEALOGY:  // Ajoutez ce cas
-          return (
-            <GenealogyPage
-              tokenId={selectedTokenId}
-              onBack={() => setActiveTab(TABS.NETWORK_PUBLICATIONS)}
-              currentLang={'fr'}
-            />
-          );
-        default:
-          return (
-            <NetworkPublications
-                          isWeb3Validator={web3Roles.isValidator}
-                          isWeb3Admin={web3Roles.isAdmin}
-                          isWebMember={isWebMember}
-                          isWebAdmin={isWebAdmin}
-                          address={address}
-                          searchTerm={searchTerm}
-                          searchResults={searchResults}
-                          isSearching={isSearching}
-                          error={error}
-                          setCurrentPage={setActiveTab}     // Ajoutez ceci
-                          setSelectedTokenId={setSelectedTokenId}  // Ajoutez ceci
-                        />
-                      );
-                  }
-                })()}
+                {renderContent()}
               </div>
             </main>
           </div>

@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }) => {
       unsubscribe();
     };
   }, []);
-  
+
   // ------- Méthodes d'authentification -------
 
   // Connexion
@@ -236,8 +236,15 @@ export const AuthProvider = ({ children }) => {
 };
 
 // =================================================================
-// HOC de protection des routes
+// HOC de protection des routes et logique de rôles
 // =================================================================
+
+// Définir la hiérarchie des rôles
+const ROLE_HIERARCHY = {
+  admin: ['admin', 'validator', 'member'], // admin peut tout faire
+  validator: ['validator', 'member'],      // validator a aussi les droits member
+  member: ['member'],                      // member a uniquement les droits member
+};
 
 export const withAuth = (WrappedComponent, allowedRoles = []) => {
   return function ProtectedComponent(props) {
@@ -247,7 +254,18 @@ export const withAuth = (WrappedComponent, allowedRoles = []) => {
       return <LoginForm />;
     }
 
-    if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    // Si aucun rôle n'est spécifié, permet l'accès
+    if (allowedRoles.length === 0) {
+      return <WrappedComponent {...props} />;
+    }
+
+    // Obtenir tous les rôles accessibles pour l'utilisateur
+    const userAccessibleRoles = ROLE_HIERARCHY[user.role] || [];
+
+    // Vérifier si l'utilisateur a accès via un de ses rôles
+    const hasAccess = allowedRoles.some(role => userAccessibleRoles.includes(role));
+
+    if (!hasAccess) {
       return (
         <div className="text-center py-12">
           <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />

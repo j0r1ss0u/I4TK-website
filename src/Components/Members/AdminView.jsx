@@ -296,47 +296,76 @@ const AdminView = () => {
         {/* En-tête avec statistiques */}
         {isAdmin ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-6 rounded-lg shadow">
+            <button
+              onClick={() => setActiveTab(TABS.ORGANIZATIONS)}
+              className={`bg-white p-6 rounded-lg shadow transition-all hover:shadow-lg ${
+                activeTab === TABS.ORGANIZATIONS ? 'ring-2 ring-amber-500' : ''
+              }`}
+            >
               <div className="flex items-center">
-                <Building2 className="h-8 w-8 text-amber-600" />
-                <div className="ml-4">
+                <Building2 className={`h-8 w-8 ${
+                  activeTab === TABS.ORGANIZATIONS ? 'text-amber-600' : 'text-gray-600'
+                }`} />
+                <div className="ml-4 text-left">
                   <h3 className="text-lg font-medium">Organizations</h3>
                   <p className="text-2xl font-semibold">{members.length}</p>
                 </div>
               </div>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
+            </button>
+            <button
+              onClick={() => setActiveTab(TABS.USERS)}
+              className={`bg-white p-6 rounded-lg shadow transition-all hover:shadow-lg ${
+                activeTab === TABS.USERS ? 'ring-2 ring-amber-500' : ''
+              }`}
+            >
               <div className="flex items-center">
-                <Users className="h-8 w-8 text-amber-600" />
-                <div className="ml-4">
+                <Users className={`h-8 w-8 ${
+                  activeTab === TABS.USERS ? 'text-amber-600' : 'text-gray-600'
+                }`} />
+                <div className="ml-4 text-left">
                   <h3 className="text-lg font-medium">Users</h3>
                   <p className="text-2xl font-semibold">{users.length}</p>
                 </div>
               </div>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
+            </button>
+            <button
+              onClick={() => setActiveTab(TABS.INVITATIONS)}
+              className={`bg-white p-6 rounded-lg shadow transition-all hover:shadow-lg ${
+                activeTab === TABS.INVITATIONS ? 'ring-2 ring-amber-500' : ''
+              }`}
+            >
               <div className="flex items-center">
-                <Mail className="h-8 w-8 text-amber-600" />
-                <div className="ml-4">
+                <Mail className={`h-8 w-8 ${
+                  activeTab === TABS.INVITATIONS ? 'text-amber-600' : 'text-gray-600'
+                }`} />
+                <div className="ml-4 text-left">
                   <h3 className="text-lg font-medium">Pending Invites</h3>
                   <p className="text-2xl font-semibold">{pendingInvitations.length}</p>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
-        ) : isValidator && (
+        ) : (
+          isValidator && 
           <div className="grid grid-cols-1 gap-4">
-            <div className="bg-white p-6 rounded-lg shadow">
+            <button
+              onClick={() => setActiveTab(TABS.INVITATIONS)}
+              className={`bg-white p-6 rounded-lg shadow transition-all hover:shadow-lg ${
+                activeTab === TABS.INVITATIONS ? 'ring-2 ring-amber-500' : ''
+              }`}
+            >
               <div className="flex items-center">
-                <Mail className="h-8 w-8 text-amber-600" />
-                <div className="ml-4">
+                <Mail className={`h-8 w-8 ${
+                  activeTab === TABS.INVITATIONS ? 'text-amber-600' : 'text-gray-600'
+                }`} />
+                <div className="ml-4 text-left">
                   <h3 className="text-lg font-medium">Pending Invites for {currentUser.organization}</h3>
                   <p className="text-2xl font-semibold">
                     {pendingInvitations.filter(inv => inv.organization === currentUser.organization).length}
                   </p>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         )}
 

@@ -77,5 +77,5 @@ const ForumPage = () => {
     </div>
   );
 };
-export const ProtectedForumPage = withAuth(ForumPage, ["member", "admin"]);
+export const ProtectedForumPage = withAuth(ForumPage, ['admin', 'validator', 'member']);
 export default ForumPage;
