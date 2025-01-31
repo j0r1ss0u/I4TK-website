@@ -57,16 +57,15 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
 
     try {
       validatePassword(password);
-
       if (password !== confirmPassword) {
         throw new Error('Passwords do not match');
       }
 
-      await invitationsService.acceptInvitation(invitation.id, { password });
+      const result = await invitationsService.acceptInvitation(invitation.id, { password });
+      // Attendre que les données utilisateur soient disponibles
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Mise à jour de l'URL sans recharger la page
       window.history.pushState({}, '', '/');
-      // Redirection vers la home page via currentPage
       setCurrentPage('home');
     } catch (err) {
       setError(err.message);
