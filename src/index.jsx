@@ -1,3 +1,8 @@
+window.addEventListener('error', (event) => {
+	if (event.error?.message?.includes('Extension context invalidated')) {
+		event.preventDefault(); // Empêcher l'erreur d'apparaître dans la console
+	}
+});
 import './index.css'
 import React from 'react'
 import ReactDOM from 'react-dom/client'

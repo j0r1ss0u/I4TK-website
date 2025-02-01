@@ -3,6 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { contractConfig } from '../../../config/wagmiConfig';
 import { documentsService } from '../../../services/documentsService';
 import ReferencesSelector from './ReferencesSelector';
+import DocumentUpload from './DocumentUpload';
 
 // =============== CONSTANTS ===============
 const PROGRAMMES = [
@@ -67,25 +68,37 @@ export default function SubmitContribution() {
     references: ''
   });
 
+  // =============== METADATA HANDLER ===============
+  const handleMetadataExtracted = (metadata) => {
+    console.log('Réception des métadonnées dans le formulaire:', metadata);
+
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        ipfsCid: metadata.ipfsCid,
+        title: metadata.title,
+        description: metadata.description
+      };
+      console.log('Nouveau state du formulaire:', newData);
+      return newData;
+    });
+  };
+
   // =============== EXTRACTION FUNCTION ===============
   const extractTokenIdFromEvent = (logs) => {
     console.log('=== Starting TokenID Extraction ===');
-
-    // Chercher l'événement tokenCreation du contrat ERC1155
     const tokenCreationEvent = logs.find(log => 
-      log.address.toLowerCase() === '0x06fc114e58b8be5d03b5b7b03ab7f0d3c9605288'.toLowerCase() && 
+      log.address.toLowerCase() === contractConfig.address.toLowerCase() && 
       log.data.includes('tokenId')
     );
 
     if (!tokenCreationEvent) {
-      // Si on ne trouve pas l'événement tokenCreation, cherchons dans data
       const transferEvent = logs.find(log => 
-        log.address.toLowerCase() === '0x06fc114e58b8be5d03b5b7b03ab7f0d3c9605288'.toLowerCase() &&
+        log.address.toLowerCase() === contractConfig.address.toLowerCase() &&
         log.data
       );
 
       if (transferEvent) {
-        // Le tokenId est dans la data, au format décimal
         const tokenId = parseInt(transferEvent.data.slice(0, 66), 16);
         console.log('TokenId from transfer event:', tokenId);
         return tokenId;
@@ -95,10 +108,8 @@ export default function SubmitContribution() {
       throw new Error('Événement tokenCreation non trouvé');
     }
 
-    // Extraire le tokenId directement de la data
     const tokenId = parseInt(tokenCreationEvent.data.slice(0, 66), 16);
     console.log('TokenId extracted:', tokenId);
-
     return tokenId;
   };
 
@@ -266,21 +277,27 @@ export default function SubmitContribution() {
             </div>
           )}
 
+          {/* Document Upload Section */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Document PDF
+            </label>
+            <DocumentUpload onMetadataExtracted={handleMetadataExtracted} />
+          </div>
+
           {/* Form Fields */}
           <div className="space-y-4">
-            {/* IPFS CID Field */}
+            {/* IPFS CID Field - Now read-only */}
             <div>
               <label htmlFor="ipfsCid" className="block text-sm font-medium text-gray-700">
-                CID IPFS ou URL du Document<span className="text-red-500">*</span>
+                CID IPFS<span className="text-red-500">*</span>
               </label>
               <input
                 id="ipfsCid"
                 type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 value={formData.ipfsCid}
-                onChange={e => setFormData({...formData, ipfsCid: e.target.value})}
-                placeholder="Qm... ou https://..."
-                required
+                readOnly
               />
             </div>
 
@@ -339,76 +356,73 @@ export default function SubmitContribution() {
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 value={formData.programme}
                 onChange={e => setFormData({...formData, programme: e.target.value})}
-                value={formData.programme}
-                                onChange={e => setFormData({...formData, programme: e.target.value})}
-                                required
-                              >
-                                <option value="">Sélectionner un programme</option>
-                                {PROGRAMMES.map(prog => (
-                                  <option key={prog} value={prog}>{prog}</option>
-                                ))}
-                              </select>
-                            </div>
+                required
+              >
+                <option value="">Sélectionner un programme</option>
+                {PROGRAMMES.map(prog => (
+                  <option key={prog} value={prog}>{prog}</option>
+                ))}
+              </select>
+            </div>
 
-                            {/* Categories Selection */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">
-                                Catégories
-                              </label>
-                              <div className="mt-2 grid grid-cols-2 gap-4">
-                                {CATEGORIES.map(category => (
-                                  <label key={category} className="flex items-center space-x-2">
-                                    <input
-                                      type="checkbox"
-                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                      checked={formData.categories.includes(category)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setFormData({
-                                            ...formData,
-                                            categories: [...formData.categories, category]
-                                          });
-                                        } else {
-                                          setFormData({
-                                            ...formData,
-                                            categories: formData.categories.filter(c => c !== category)
-                                          });
-                                        }
-                                      }}
-                                    />
-                                    <span className="text-sm text-gray-700">{category}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
+            {/* Categories Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Catégories
+              </label>
+              <div className="mt-2 grid grid-cols-2 gap-4">
+                {CATEGORIES.map(category => (
+                  <label key={category} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={formData.categories.includes(category)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            categories: [...formData.categories, category]
+                          });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            categories: formData.categories.filter(c => c !== category)
+                          });
+                        }
+                      }}
+                    />
+                    <span className="text-sm text-gray-700">{category}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
-                            {/* References Selector */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">
-                                Références bibliographiques
-                              </label>
-                              <div className="mt-1">
-                                <ReferencesSelector
-                                  value={formData.references}
-                                  onChange={(newRefs) => setFormData({...formData, references: newRefs})}
-                                />
-                              </div>
-                            </div>
-                          </div>
+            {/* References Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Références bibliographiques
+              </label>
+              <div className="mt-1">
+                <ReferencesSelector
+                  value={formData.references}
+                  onChange={(newRefs) => setFormData({...formData, references: newRefs})}
+                />
+              </div>
+            </div>
+          </div>
 
-                          {/* Submit Button */}
-                          <button
-                            type="submit"
-                            disabled={isTxPending}
-                            className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isTxPending ? 'Soumission en cours...' : 'Soumettre la contribution'}
-                          </button>
-                        </form>
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isTxPending}
+            className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isTxPending ? 'Soumission en cours...' : 'Soumettre la contribution'}
+          </button>
+        </form>
 
-                        {/* Network Help Component */}
-                        {showNetworkHelp && <NetworkHelp />}
-                      </div>
-                    </div>
-                  );
-                }
+        {/* Network Help Component */}
+        {showNetworkHelp && <NetworkHelp />}
+      </div>
+    </div>
+  );}
