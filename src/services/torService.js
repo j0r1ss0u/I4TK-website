@@ -33,7 +33,7 @@ export const torService = {
       console.error('Error recording ToR acceptance:', error);
       throw error;
     }
-  }
+  },
 
   // Récupérer la liste des signataires
   async getSignatories(documentId) {
