@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth, UserProfile, LoginForm } from './AuthContext';
 import WalletConnect from './Library/WalletConnect';
 import { LogIn, Menu, X } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 // =============== LOGIN BUTTON COMPONENT ===============
 const LoginButton = () => {
@@ -54,7 +55,7 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
     { id: "members", label: "Members", public: true },
     { id: "library", label: "Library", public: true },
     { id: "forum", label: "Forum", requiredRole: 'member' },
-    { id: "chat", label: "AI Chat", requiredRole: 'admin' }
+    { id: "chat", label: "Chat", requiredRole: 'admin' }
   ];
 
   const userAccess = getUserAccess(user);
@@ -94,7 +95,10 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
       <div className={`${isMobile ? 'flex justify-center' : 'flex items-center'}`}>
         {user ? (
           <div className={`flex ${isMobile ? 'flex-col space-y-4' : 'items-center space-x-4'}`}>
-            <UserProfile />
+            <div className="flex items-center space-x-2">
+              <UserProfile />
+              {user.role !== 'guest' && <NotificationBell />}  {/* Ici ! */}
+            </div>
             {showWalletConnect && <WalletConnect />}
           </div>
         ) : (
