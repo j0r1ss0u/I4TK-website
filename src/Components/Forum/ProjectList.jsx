@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { projetManagementService } from '../../services/projectManagement';
 import { useAuth } from '../AuthContext';
+import { Trash2 } from 'lucide-react';
 
 // Composant ProjectCard séparé pour plus de clarté
-const ProjectCard = ({ project, onClick }) => {
-  console.log('ProjectCard: Rendering project:', project);
+const ProjectCard = ({ project, onClick, onDelete }) => {
+  const { user } = useAuth();
+  const isCreatorOrAdmin = user && (user.uid === project.creator?.uid || user.role === 'admin');
+
+  const handleDelete = (e) => {
+    e.stopPropagation(); // Empêcher le onClick du parent
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
+      onDelete(project.id);
+    }
+  };
 
   if (!project) {
     console.log('ProjectCard: No project data received');
@@ -28,9 +37,20 @@ const ProjectCard = ({ project, onClick }) => {
     >
       <div className="flex justify-between items-start">
         <h3 className="text-lg font-medium text-gray-900">{project.title}</h3>
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(project.status?.current)}`}>
-          {project.status?.current || 'draft'}
-        </span>
+        <div className="flex items-center space-x-2">
+          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(project.status?.current)}`}>
+            {project.status?.current || 'draft'}
+          </span>
+          {isCreatorOrAdmin && (
+            <button
+              onClick={handleDelete}
+              className="p-1 text-red-600 hover:text-red-800 transition-colors"
+              title="Supprimer le projet"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <p className="mt-2 text-sm text-gray-600 line-clamp-3">{project.description}</p>
@@ -47,7 +67,7 @@ const ProjectCard = ({ project, onClick }) => {
           </div>
         )}
         <div className="text-xs text-gray-400 mt-2">
-          Created by: {project.creator?.email}
+          Created by: {project.creator?.email}       
         </div>
       </div>
     </div>
@@ -61,6 +81,18 @@ const ProjectList = ({ onProjectSelect }) => {
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState(null);
   const { user } = useAuth();
+
+  const handleDeleteProject = async (projectId) => {
+    try {
+      await projetManagementService.supprimerProjet(projectId);
+      // Recharger la liste des projets
+      const updatedProjects = await projetManagementService.getProjets();
+      setProjects(updatedProjects);
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      setError('Failed to delete project. Please try again.');
+    }
+  };
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -135,6 +167,7 @@ const ProjectList = ({ onProjectSelect }) => {
               key={project.id} 
               project={project}
               onClick={() => onProjectSelect(project.id)}
+              onDelete={handleDeleteProject}
             />
           ))}
         </div>

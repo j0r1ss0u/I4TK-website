@@ -1,42 +1,17 @@
-// src/services/projectNotificationService.js
 import { db } from './firebase';
-import { torService } from './torService';
 import { 
   collection, 
-  addDoc,
-  getDocs,
-  query,
-  where,
-  doc,
-  updateDoc,
+  addDoc, 
+  doc, 
+  updateDoc, 
   increment
 } from 'firebase/firestore';
 
 export const projectNotificationService = {
-  // Récupère le dernier ToR et ses signataires
-  async getNotificationRecipients(documentId) {
+  async notifyNewProject(projectData, signatories) {
     try {
-      // Utilisation de la méthode existante avec l'ID du document
-      const signatories = await torService.getSignatories(documentId);
-      return signatories.map(signatory => ({
-        id: signatory.userId,
-        email: signatory.email,
-        organization: signatory.organization || 'Unknown'
-      }));
-    } catch (error) {
-      console.error('Error getting notification recipients:', error);
-      return [];
-    }
-  },
-
-  // Envoie une notification pour un nouveau projet
-  async notifyNewProject(projectData, documentId) {
-    try {
-      // D'abord, récupérer les destinataires
-      const recipients = await this.getNotificationRecipients(documentId);
-
-      if (!recipients || recipients.length === 0) {
-        console.log('No recipients found for notifications');
+      if (!signatories || signatories.length === 0) {
+        console.log('No signatories to notify');
         return null;
       }
 
@@ -45,53 +20,38 @@ export const projectNotificationService = {
         title: `New Project: ${projectData.title}`,
         description: projectData.description,
         projectId: projectData.id,
-        creator: projectData.creator,
+        creator: {
+          email: projectData.creator.email,
+          uid: projectData.creator.uid
+        },
         createdAt: new Date(),
-        recipients: recipients.map(r => r.id),
+        recipients: signatories.map(s => s.userId),
         status: 'unread'
       };
 
-      // Ajouter la notification à Firestore
-      const notificationsRef = collection(db, 'notifications');
-      const notificationDoc = await addDoc(notificationsRef, notification);
+      // Créer la notification
+      const notificationRef = await addDoc(collection(db, 'notifications'), notification);
+      console.log('Notification created for project:', projectData.title);
 
-      // Mettre à jour le compteur de notifications pour chaque destinataire
-      for (const recipient of recipients) {
-        if (recipient.id) {
-          const userRef = doc(db, 'users', recipient.id);
+      // Mettre à jour les compteurs
+      for (const signatory of signatories) {
+        try {
+          const userRef = doc(db, 'users', signatory.userId);
           await updateDoc(userRef, {
             unreadNotifications: increment(1)
           });
+        } catch (error) {
+          console.error(`Error updating counter for ${signatory.email}:`, error);
         }
       }
 
       return {
         ...notification,
-        id: notificationDoc.id
+        id: notificationRef.id
       };
     } catch (error) {
-      console.error('Error in notifyNewProject:', error);
+      console.error('Error sending project notification:', error);
       return null;
-    }
-  },
-
-  // Marquer une notification comme lue
-  async markAsRead(notificationId, userId) {
-    try {
-      const notificationRef = doc(db, 'notifications', notificationId);
-      await updateDoc(notificationRef, {
-        [`readBy.${userId}`]: true
-      });
-
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
-        unreadNotifications: increment(-1)
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      return false;
     }
   }
 };

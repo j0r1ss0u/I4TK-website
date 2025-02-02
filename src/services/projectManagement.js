@@ -1,5 +1,7 @@
 import { collection, addDoc, getDocs, query, where, deleteDoc, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { projectNotificationService } from './projectNotificationService';
+
 
 export const projetManagementService = {
   async ajouterProjet(projetData) {
@@ -86,32 +88,29 @@ export const projetManagementService = {
     }
   },
 
-  async updateProjectStatus(projetId, newStatus, userId) {
+  async updateProjectStatus(projetId, newStatus) {
     try {
-      console.log('1. Starting status update:', { projetId, newStatus });
       const projetRef = doc(db, 'projects', projetId);
-
-      // Vérifier d'abord si le projet existe et les permissions
       const docSnap = await getDoc(projetRef);
+
       if (!docSnap.exists()) {
         throw new Error('Project not found');
       }
 
-      const projectData = docSnap.data();
-      if (projectData.creator.uid !== userId) {
-        throw new Error('Only the project creator can update the status');
-      }
+      const oldStatus = docSnap.data().status?.current;
 
-      // Mettre à jour le statut
       await updateDoc(projetRef, {
-        status: {
-          current: newStatus,
-          lastUpdated: serverTimestamp()
-        },
+        'status.current': newStatus,
+        'status.lastUpdated': serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
-      console.log('2. Status updated successfully');
+      // Si le projet passe de draft à published, envoyer les notifications
+      if (oldStatus === 'draft' && newStatus === 'published') {
+        const projectData = { id: projetId, ...docSnap.data() };
+        await projectNotificationService.notifyNewProject(projectData);
+      }
+
       return true;
     } catch (error) {
       console.error('Error updating project status:', error);

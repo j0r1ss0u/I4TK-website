@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { projetManagementService } from '../../services/projectManagement';
 import { projectNotificationService } from '../../services/projectNotificationService';
+import { torService } from '../../services/torService';
 import { motion } from 'framer-motion';
 
 const ProjectSubmission = ({ onSubmit }) => {
@@ -33,6 +34,7 @@ const ProjectSubmission = ({ onSubmit }) => {
     setError(null);
 
     try {
+      console.log('Starting project creation...');
       const projectData = {
         ...formData,
         creator: {
@@ -42,24 +44,36 @@ const ProjectSubmission = ({ onSubmit }) => {
         }
       };
 
-      // Créer le projet
+      // 1. Créer le projet
+      console.log('Creating project with data:', projectData);
       const newProject = await projetManagementService.ajouterProjet(projectData);
-      console.log('Projet créé avec succès:', newProject);
+      console.log('Project created:', newProject);
 
-      // Notification aux signataires du ToR
-      await projectNotificationService.notifyNewProject(
-        { ...projectData, id: newProject.id }
-      );
+      // 2. Essayer d'envoyer les notifications, mais ne pas bloquer si ça échoue
+      try {
+        if (projectData.id) {
+          console.log('Attempting to send notifications...');
+          await projectNotificationService.notifyNewProject({
+            ...projectData,
+            id: newProject.id
+          });
+          console.log('Notifications sent successfully');
+        }
+      } catch (notifError) {
+        console.error('Error sending notifications:', notifError);
+        // On continue même si la notification échoue
+      }
 
+      // 3. Retourner à la liste des projets
       onSubmit();
     } catch (error) {
-      console.error('Error creating project:', error);
+      console.error('Error in project submission:', error);
       setError('Une erreur est survenue lors de la création du projet.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
+  
   const handleSkillAdd = () => {
     setFormData({
       ...formData,
@@ -124,10 +138,11 @@ const ProjectSubmission = ({ onSubmit }) => {
       animate={{ opacity: 1 }}
       className="max-w-3xl mx-auto bg-white rounded-lg shadow-md p-6"
     >
+      {/* === HEADER SECTION === */}
       <div className="border-b border-gray-200 pb-4 mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Create New Project</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Fill in the details below to create a new project. All members will be notified.
+          Fill in the details below to create a new project. All ToR signatories will be notified.
         </p>
       </div>
 
@@ -138,9 +153,11 @@ const ProjectSubmission = ({ onSubmit }) => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Basic Information */}
-        <section>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+        {/* === BASIC INFORMATION SECTION === */}
+        <section aria-labelledby="section-basic-info">
+          <div className="border-b border-gray-200 mb-4">
+            <h3 id="section-basic-info" className="text-lg font-semibold text-gray-900">Basic Information</h3>
+          </div>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Project Title</label>
@@ -166,9 +183,11 @@ const ProjectSubmission = ({ onSubmit }) => {
           </div>
         </section>
 
-        {/* Budget Information */}
-        <section>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Information</h3>
+        {/* === BUDGET SECTION === */}
+        <section aria-labelledby="section-budget">
+          <div className="border-b border-gray-200 mb-4">
+            <h3 id="section-budget" className="text-lg font-semibold text-gray-900">Budget Information</h3>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Budget Amount</label>
@@ -201,9 +220,11 @@ const ProjectSubmission = ({ onSubmit }) => {
           </div>
         </section>
 
-        {/* Timeline */}
-        <section>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Timeline</h3>
+        {/* === TIMELINE SECTION === */}
+        <section aria-labelledby="section-timeline">
+          <div className="border-b border-gray-200 mb-4">
+            <h3 id="section-timeline" className="text-lg font-semibold text-gray-900">Project Timeline</h3>
+          </div>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -234,11 +255,15 @@ const ProjectSubmission = ({ onSubmit }) => {
               </div>
             </div>
 
-            {/* Milestones */}
+            {/* === MILESTONES SUBSECTION === */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Milestones</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Project Milestones</label>
               {formData.timeline.milestones.map((milestone, index) => (
-                <div key={index} className="mb-4 p-4 border rounded-md">
+                <motion.div 
+                  key={index}
+                  layout
+                  className="mb-4 p-4 border rounded-md bg-gray-50"
+                >
                   <div className="grid grid-cols-2 gap-4 mb-2">
                     <input
                       type="text"
@@ -270,7 +295,7 @@ const ProjectSubmission = ({ onSubmit }) => {
                       Remove Milestone
                     </button>
                   )}
-                </div>
+                </motion.div>
               ))}
               <button
                 type="button"
@@ -283,12 +308,18 @@ const ProjectSubmission = ({ onSubmit }) => {
           </div>
         </section>
 
-        {/* Required Skills */}
-        <section>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Required Skills</h3>
+        {/* === REQUIRED SKILLS SECTION === */}
+        <section aria-labelledby="section-skills">
+          <div className="border-b border-gray-200 mb-4">
+            <h3 id="section-skills" className="text-lg font-semibold text-gray-900">Required Skills</h3>
+          </div>
           <div className="space-y-2">
             {formData.requiredSkills.map((skill, index) => (
-              <div key={index} className="flex space-x-2">
+              <motion.div
+                key={index}
+                layout
+                className="flex space-x-2"
+              >
                 <input
                   type="text"
                   value={skill}
@@ -305,7 +336,7 @@ const ProjectSubmission = ({ onSubmit }) => {
                     Remove
                   </button>
                 )}
-              </div>
+              </motion.div>
             ))}
             <button
               type="button"
@@ -317,7 +348,7 @@ const ProjectSubmission = ({ onSubmit }) => {
           </div>
         </section>
 
-        {/* Submit Section */}
+        {/* === SUBMIT SECTION === */}
         <section className="border-t border-gray-200 pt-6">
           <div className="flex justify-end space-x-4">
             <button
