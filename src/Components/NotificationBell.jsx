@@ -1,60 +1,107 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectNotificationService } from '../services/projectNotificationService';
 import { db } from '../services/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  getDocs,
+  doc,
+  getDoc 
+} from 'firebase/firestore';
 
-const NotificationBell = () => {
+const NotificationBell = ({ setCurrentPage }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
+  const containerRef = useRef(null);
+  const queryClient = useQueryClient();
 
-  // Utiliser React Query pour gérer l'état et le cache
-  const { data: notifications = [], isLoading } = useQuery({
+  const { data: notifications = [], isLoading, error } = useQuery({
     queryKey: ['notifications', user?.uid],
     queryFn: async () => {
-      const snapshot = await db
-        .collection('notifications')
-        .where('recipients', 'array-contains', user.uid)
-        .orderBy('timestamp', 'desc')
-        .limit(10)
-        .get();
+      const notificationsRef = collection(db, 'notifications');
+      const q = query(
+        notificationsRef,
+        where('recipients', 'array-contains', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+      );
+      const snapshot = await getDocs(q);
 
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate()
+        timestamp: doc.data().createdAt?.toDate()
       }));
     },
     enabled: !!user?.uid,
+    staleTime: 1000 * 60,
+    refetchInterval: 1000 * 30,
   });
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['unreadCount', user?.uid],
     queryFn: async () => {
-      const doc = await db
-        .collection('users')
-        .doc(user.uid)
-        .get();
-      return doc.data()?.unreadNotifications || 0;
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      return userDoc.data()?.unreadNotifications || 0;
     },
     enabled: !!user?.uid,
+    staleTime: 1000 * 60,
+    refetchInterval: 1000 * 30,
   });
 
   const markAsReadMutation = useMutation({
     mutationFn: (notificationId) => 
       projectNotificationService.markNotificationAsRead(notificationId, user.uid),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unreadCount'] });
+    },
   });
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      await markAsReadMutation.mutateAsync(notification.id);
+      setCurrentPage('forum');
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Error handling notification:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.uid] });
+    }
+  }, [isOpen, queryClient, user?.uid]);
+
+  const handleMouseEnter = () => {
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsOpen(false);
+  };
 
   if (!user) return null;
 
   return (
-    <div className="relative">
+    <div 
+      className="relative"
+      ref={containerRef}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-600 hover:text-gray-900"
       >
         <Bell className="w-6 h-6" />
@@ -83,7 +130,9 @@ const NotificationBell = () => {
             <div className="p-4">
               <h3 className="text-lg font-medium mb-4">Notifications</h3>
               <div className="space-y-4">
-                {isLoading ? (
+                {error ? (
+                  <p className="text-red-500 text-center">Error: {error.message}</p>
+                ) : isLoading ? (
                   <div className="text-center py-4">
                     <motion.div
                       animate={{ rotate: 360 }}
@@ -102,7 +151,7 @@ const NotificationBell = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
-                        onClick={() => markAsReadMutation.mutate(notification.id)}
+                        onClick={() => handleNotificationClick(notification)}
                       >
                         <p className="font-medium">{notification.title}</p>
                         <p className="text-sm text-gray-600 mt-1">{notification.description}</p>

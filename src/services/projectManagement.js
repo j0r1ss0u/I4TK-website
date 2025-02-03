@@ -1,9 +1,22 @@
-import { collection, addDoc, getDocs, query, where, deleteDoc, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  deleteDoc, 
+  doc, 
+  updateDoc, 
+  serverTimestamp, 
+  getDoc 
+} from 'firebase/firestore';
 import { db } from './firebase';
 import { projectNotificationService } from './projectNotificationService';
-
+import { documentsService } from './documentsService';  // Ajout de cet import
+import { torService } from './torService';  // Ajout de cet import aussi
 
 export const projetManagementService = {
+  
   async ajouterProjet(projetData) {
     try {
       const projetsRef = collection(db, 'projects');
@@ -98,6 +111,7 @@ export const projetManagementService = {
       }
 
       const oldStatus = docSnap.data().status?.current;
+      console.log(`Project status transition: ${oldStatus} -> ${newStatus}`);
 
       await updateDoc(projetRef, {
         'status.current': newStatus,
@@ -105,29 +119,34 @@ export const projetManagementService = {
         updatedAt: serverTimestamp()
       });
 
-      // Si le projet passe de draft à published
       if (oldStatus === 'draft' && newStatus === 'published') {
-        // 1. Récupérer le dernier ToR
         const torResults = await documentsService.semanticSearch('TERMS OF REFERENCE');
+        console.log('Found ToR documents:', torResults);
+
         if (!torResults || torResults.length === 0) {
           throw new Error('Terms of Reference document not found');
         }
         const latestTor = torResults[0];
+        console.log('Latest ToR:', latestTor);
 
-        // 2. Récupérer tous les signataires
         const signatories = await torService.getSignatories(latestTor.id);
+        console.log('Retrieved signatories:', signatories);
 
-        // 3. Envoyer la notification avec les signataires
+        if (signatories.length === 0) {
+          console.log('No signatories found for ToR');
+          return true;
+        }
+
         const projectData = { id: projetId, ...docSnap.data() };
         await projectNotificationService.notifyNewProject(projectData, signatories);
       }
 
       return true;
     } catch (error) {
-      console.error('Error updating project status:', error);
+      console.error('Error in updateProjectStatus:', error);
       throw error;
     }
-  }
+  },
 
   async addComment(projetId, commentData) {
     try {
