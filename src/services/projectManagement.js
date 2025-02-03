@@ -105,10 +105,21 @@ export const projetManagementService = {
         updatedAt: serverTimestamp()
       });
 
-      // Si le projet passe de draft à published, envoyer les notifications
+      // Si le projet passe de draft à published
       if (oldStatus === 'draft' && newStatus === 'published') {
+        // 1. Récupérer le dernier ToR
+        const torResults = await documentsService.semanticSearch('TERMS OF REFERENCE');
+        if (!torResults || torResults.length === 0) {
+          throw new Error('Terms of Reference document not found');
+        }
+        const latestTor = torResults[0];
+
+        // 2. Récupérer tous les signataires
+        const signatories = await torService.getSignatories(latestTor.id);
+
+        // 3. Envoyer la notification avec les signataires
         const projectData = { id: projetId, ...docSnap.data() };
-        await projectNotificationService.notifyNewProject(projectData);
+        await projectNotificationService.notifyNewProject(projectData, signatories);
       }
 
       return true;
@@ -116,7 +127,7 @@ export const projetManagementService = {
       console.error('Error updating project status:', error);
       throw error;
     }
-  },
+  }
 
   async addComment(projetId, commentData) {
     try {
