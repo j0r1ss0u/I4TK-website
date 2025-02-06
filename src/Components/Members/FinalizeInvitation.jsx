@@ -1,26 +1,39 @@
-// src/components/Members/FinalizeInvitation.jsx
+// =================================================================
+// FinalizeInvitation.jsx
+// Composant de finalisation d'invitation utilisateur
+// =================================================================
+
 import React, { useState, useEffect } from 'react';
 import { invitationsService } from '../../services/invitationsService';
 import { documentsService } from '../../services/documentsService';
 import { torService } from '../../services/torService';
 import { Loader2 } from 'lucide-react';
+import PasswordForm from './PasswordForm';
+
+// =================================================================
+// Constantes
+// =================================================================
 
 const STEPS = {
   TOR: 'tor',
   PASSWORD: 'password'
 };
 
+// =================================================================
+// Composant Principal
+// =================================================================
+
 const FinalizeInvitation = ({ setCurrentPage }) => {
+  // ------- État local -------
   const [step, setStep] = useState(STEPS.TOR);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [invitation, setInvitation] = useState(null);
   const [torDocument, setTorDocument] = useState(null);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTor, setAcceptTor] = useState(false);
 
+  // ------- Initialisation -------
   useEffect(() => {
     const init = async () => {
       try {
@@ -55,6 +68,7 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
     init();
   }, []);
 
+  // ------- Gestionnaires d'événements -------
   const handleTorAccept = async () => {
     if (!acceptTor) {
       setError('You must accept the Terms of Reference to continue');
@@ -63,9 +77,7 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
 
     try {
       setIsSubmitting(true);
-      // Enregistrer l'acceptation du ToR
       await torService.acceptToR(invitation.email, torDocument.id);
-      // Passer à l'étape suivante
       setStep(STEPS.PASSWORD);
     } catch (err) {
       setError(err.message);
@@ -74,31 +86,23 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
     }
   };
 
-  const handlePasswordSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
+  // ------- Gestionnaire de finalisation -------
+  const handlePasswordSubmit = async ({ password }) => {
     try {
       if (!acceptTor) {
         throw new Error('Terms of Reference must be accepted first');
       }
 
-      if (password !== confirmPassword) {
-        throw new Error('Passwords do not match');
-      }
-
-      const result = await invitationsService.acceptInvitation(invitation.id, { password });
+      await invitationsService.acceptInvitation(invitation.id, { password });
       await new Promise(resolve => setTimeout(resolve, 1000));
       window.history.pushState({}, '', '/');
       setCurrentPage('home');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsSubmitting(false);
+    } catch (error) {
+      throw error;
     }
   };
 
+  // ------- Rendus conditionnels -------
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -118,6 +122,7 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
     );
   }
 
+  // ------- Rendu principal -------
   return (
     <div className="container mx-auto max-w-2xl p-6">
       {step === STEPS.TOR ? (
@@ -182,55 +187,10 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
           </div>
         </div>
       ) : (
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <h2 className="text-2xl font-bold text-center mb-6">
-            Set Your Password
-          </h2>
-
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <input
-                type="password"
-                placeholder="Choose a password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                required
-                minLength={8}
-              />
-              <p className="text-xs text-gray-500">
-                Password must be at least 8 characters long and contain at least one uppercase letter, 
-                one lowercase letter, and one number.
-              </p>
-            </div>
-
-            <div>
-              <input
-                type="password"
-                placeholder="Confirm password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                required
-              />
-            </div>
-
-            <button 
-              type="submit" 
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 px-4 rounded-md disabled:opacity-50"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span>Processing...</span>
-                </div>
-              ) : (
-                'Complete Registration'
-              )}
-            </button>
-          </form>
-        </div>
+        <PasswordForm 
+          onSubmit={handlePasswordSubmit}
+          buttonText="Complete Registration"
+        />
       )}
     </div>
   );

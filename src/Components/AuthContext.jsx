@@ -8,6 +8,8 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, LogIn, LogOut, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { auth } from "../services/firebase";
 import { firebaseAuthService } from "../services/firebaseAuthService";
+import { invitationsService } from "../services/invitationsService";
+import ForgotPassword from "./Members/ForgotPassword";
 
 // =================================================================
 // Création et export du Context et Hook personnalisé
@@ -17,7 +19,7 @@ const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth doit être utilisé à l\'intérieur d\'un AuthProvider');
   }
   return context;
@@ -32,6 +34,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
+  const [authPage, setAuthPage] = useState('login');
 
   // ------- Gestionnaire de notifications -------
   const showNotification = (message, type = 'success') => {
@@ -45,7 +48,6 @@ export const AuthProvider = ({ children }) => {
       console.log('Changement d\'état d\'authentification:', firebaseUser?.email);
       try {
         if (firebaseUser) {
-          // Support des comptes de test hardcodés
           if (firebaseUser.email === 'admin@i4tk.org') {
             setUser({ uid: 'admin', role: 'admin', email: firebaseUser.email });
             showNotification('Connecté en tant qu\'administrateur');
@@ -53,24 +55,20 @@ export const AuthProvider = ({ children }) => {
             return;
           }
 
-          // Vérifier s'il y a des données d'invitation en attente
           const pendingInvitationData = localStorage.getItem('pendingInvitationData');
 
           if (pendingInvitationData) {
             console.log('Données d\'invitation trouvées:', pendingInvitationData);
             const invitationData = JSON.parse(pendingInvitationData);
 
-            // Initialiser/mettre à jour le profil avec les données d'invitation
             const userDoc = await firebaseAuthService.initializeUserRole(
               firebaseUser.uid, 
               firebaseUser.email,
               invitationData
             );
 
-            // Nettoyer les données temporaires
             localStorage.removeItem('pendingInvitationData');
 
-            // Mettre à jour l'état utilisateur avec les données complètes
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
@@ -85,7 +83,6 @@ export const AuthProvider = ({ children }) => {
             } de ${invitationData.organization}`);
 
           } else {
-            // Récupération standard des données utilisateur
             console.log('Récupération des données utilisateur standard');
             const userDoc = await firebaseAuthService.getUserData(firebaseUser.uid);
 
@@ -109,7 +106,6 @@ export const AuthProvider = ({ children }) => {
             }
           }
         } else {
-          // Déconnexion : nettoyer l'état
           console.log('Déconnexion détectée');
           setUser(null);
           localStorage.removeItem('pendingInvitationData');
@@ -123,36 +119,22 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    return () => {
-      console.log('Nettoyage de l\'observer Firebase Auth');
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   // ------- Méthodes d'authentification -------
-
-  // Connexion
   const login = async (credentials) => {
     try {
-      // Support des comptes de test hardcodés
       if (credentials.email === 'admin@i4tk.org' && credentials.password === 'admin') {
         const user = await firebaseAuthService.loginUser(credentials.email, credentials.password);
         setUser({ role: 'admin', email: credentials.email });
         showNotification('Connecté en tant qu\'administrateur');
         return user;
       } 
-      else if (credentials.email === 'member@i4tk.org' && credentials.password === 'member') {
-        const user = await firebaseAuthService.loginUser(credentials.email, credentials.password);
-        setUser({ role: 'member', email: credentials.email });
-        showNotification('Connecté en tant que membre');
-        return user;
-      } 
-      else {
-        // Authentification Firebase standard
-        const user = await firebaseAuthService.loginUser(credentials.email, credentials.password);
-        showNotification(`Bienvenue ${user.role === 'admin' ? ' administrateur' : ''} !`);
-        return user;
-      }
+
+      const user = await firebaseAuthService.loginUser(credentials.email, credentials.password);
+      showNotification(`Bienvenue${user.role === 'admin' ? ' administrateur' : ''} !`);
+      return user;
     } catch (error) {
       let message = 'Échec de la connexion. Vérifiez vos identifiants.';
       if (error.message.includes('verify your email')) {
@@ -163,7 +145,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Déconnexion
   const logout = async () => {
     try {
       await firebaseAuthService.logoutUser();
@@ -175,21 +156,38 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Réinitialisation du mot de passe
   const resetPassword = async (email) => {
     try {
+      const invitation = await invitationsService.getInvitationByEmail(email);
+      if (invitation?.status === 'pending') {
+        const invitationDate = invitation.createdAt.toDate();
+        showNotification(
+          `Une invitation est en attente depuis le ${invitationDate.toLocaleDateString()} (${invitationDate.toLocaleTimeString()}) - Vérifiez l'email envoyé par noreply@i4tk.org`,
+          'info'
+        );
+        return;
+      }
+
+      const userExists = await firebaseAuthService.getUserByEmail(email);
+      if (!userExists) {
+        showNotification('Aucun compte associé à cette adresse email', 'error');
+        return;
+      }
+
       await firebaseAuthService.resetPassword(email);
-      showNotification('Email de réinitialisation envoyé');
+      showNotification('Instructions de réinitialisation envoyées par email');
+      setAuthPage('login');
+      return true;
     } catch (error) {
-      showNotification('Échec de l\'envoi de l\'email de réinitialisation', 'error');
+      console.error('Erreur resetPassword:', error);
+      showNotification(error.message, 'error');
       throw error;
     }
   };
 
-  // Changement de mot de passe
   const changePassword = async (newPassword) => {
     try {
-      await firebaseAuthService.changePassword(newPassword);
+      await firebaseAuthService.updatePassword(newPassword);
       showNotification('Mot de passe mis à jour avec succès');
     } catch (error) {
       showNotification('Échec de la mise à jour du mot de passe', 'error');
@@ -197,7 +195,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Renvoyer l'email de vérification
   const resendVerificationEmail = async () => {
     try {
       await firebaseAuthService.resendVerificationEmail();
@@ -217,7 +214,10 @@ export const AuthProvider = ({ children }) => {
       logout,
       resetPassword,
       changePassword,
-      resendVerificationEmail
+      resendVerificationEmail,
+      showNotification,
+      authPage,
+      setAuthPage
     }}>
       {notification && (
         <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg ${
@@ -239,30 +239,25 @@ export const AuthProvider = ({ children }) => {
 // HOC de protection des routes et logique de rôles
 // =================================================================
 
-// Définir la hiérarchie des rôles
 const ROLE_HIERARCHY = {
-  admin: ['admin', 'validator', 'member'], // admin peut tout faire
-  validator: ['validator', 'member'],      // validator a aussi les droits member
-  member: ['member'],                      // member a uniquement les droits member
+  admin: ['admin', 'validator', 'member'], 
+  validator: ['validator', 'member'],     
+  member: ['member']                     
 };
 
 export const withAuth = (WrappedComponent, allowedRoles = []) => {
   return function ProtectedComponent(props) {
-    const { user } = useAuth();
+    const { user, authPage } = useAuth();
 
     if (!user) {
-      return <LoginForm />;
+      return authPage === 'forgot-password' ? <ForgotPassword /> : <LoginForm />;
     }
 
-    // Si aucun rôle n'est spécifié, permet l'accès
     if (allowedRoles.length === 0) {
       return <WrappedComponent {...props} />;
     }
 
-    // Obtenir tous les rôles accessibles pour l'utilisateur
     const userAccessibleRoles = ROLE_HIERARCHY[user.role] || [];
-
-    // Vérifier si l'utilisateur a accès via un de ses rôles
     const hasAccess = allowedRoles.some(role => userAccessibleRoles.includes(role));
 
     if (!hasAccess) {
@@ -309,18 +304,15 @@ export const UserProfile = () => {
 
 // =================================================================
 // Composant LoginForm
-// Formulaire utilisé pour la connexion des utilisateurs
 // =================================================================
 
 export const LoginForm = () => {
-  // ------- État local -------
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
-  const { login } = useAuth();
+  const { login, setAuthPage, showNotification } = useAuth();
 
-  // ------- Gestionnaire de soumission -------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -328,7 +320,6 @@ export const LoginForm = () => {
       await login({ email, password });
     } catch (error) {
       console.error('Erreur de connexion:', error);
-      // Si l'erreur indique que l'email n'est pas vérifié
       if (error.code === 'auth/email-not-verified') {
         setNeedsVerification(true);
       }
@@ -337,22 +328,18 @@ export const LoginForm = () => {
     }
   };
 
-  // ------- Gestionnaire de renvoi d'email -------
   const handleResendVerification = async () => {
     try {
       await firebaseAuthService.resendVerificationEmail();
-      // Montrer un message de succès
-      alert('Email de vérification envoyé. Veuillez vérifier votre boîte de réception.');
+      showNotification('Email de vérification envoyé. Vérifiez votre boîte de réception.');
     } catch (error) {
       console.error('Erreur lors de l\'envoi de l\'email:', error);
-      alert('Erreur lors de l\'envoi de l\'email de vérification.');
+      showNotification('Erreur lors de l\'envoi de l\'email de vérification.', 'error');
     }
   };
 
-  // ------- Rendu du formulaire -------
   return (
     <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-lg">
-      {/* En-tête du formulaire */}
       <div className="flex items-center justify-center mb-6">
         <User className="h-12 w-12 text-gray-400" />
       </div>
@@ -360,7 +347,6 @@ export const LoginForm = () => {
         Connexion
       </h2>
 
-      {/* Message de vérification d'email si nécessaire */}
       {needsVerification && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
           <p className="text-sm text-yellow-800">
@@ -376,9 +362,7 @@ export const LoginForm = () => {
         </div>
       )}
 
-      {/* Formulaire */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Champ Email */}
         <div>
           <label className="block text-sm font-medium text-gray-700">Email</label>
           <input
@@ -390,7 +374,6 @@ export const LoginForm = () => {
           />
         </div>
 
-        {/* Champ Mot de passe */}
         <div>
           <label className="block text-sm font-medium text-gray-700">Mot de passe</label>
           <input
@@ -402,18 +385,19 @@ export const LoginForm = () => {
           />
         </div>
 
-        {/* Lien Mot de passe oublié */}
         <div className="text-right">
           <button
             type="button"
-            onClick={() => {/* TODO: Implémenter mot de passe oublié */}}
+            onClick={() => {
+              console.log('Clicking forgot password');
+              setAuthPage('forgot-password'); // S'assurer que setAuthPage est bien passé via useAuth()
+            }}
             className="text-sm text-amber-600 hover:text-amber-500"
           >
             Mot de passe oublié ?
           </button>
         </div>
 
-        {/* Bouton de soumission */}
         <button
           type="submit"
           disabled={isLoading}

@@ -1,8 +1,3 @@
-// =================================================================
-// firebaseAuthService.js
-// Gère toutes les interactions avec Firebase Auth
-// =================================================================
-
 import { auth } from './firebase';
 import { 
   signInWithEmailAndPassword,
@@ -10,10 +5,22 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   signOut,
+  fetchSignInMethodsForEmail,
   updatePassword
 } from 'firebase/auth';
 import { db } from './firebase';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs,
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { emailService } from './emailService';
 
 export const firebaseAuthService = {
   // ------- Initialisation du profil utilisateur -------
@@ -140,14 +147,133 @@ export const firebaseAuthService = {
     }
   },
 
-  // ------- Réinitialisation du mot de passe -------
-  async resetPassword(email) {
-    console.log('Tentative de réinitialisation du mot de passe pour:', email);
+  // ------- Vérification de l'existence d'un utilisateur -------
+  async getUserByEmail(email) {
     try {
-      await sendPasswordResetEmail(auth, email);
-      console.log('Email de réinitialisation envoyé avec succès');
+      // D'abord, vérifions dans la collection users de Firestore
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', email.toLowerCase()));
+      const snapshot = await getDocs(q);
+
+      console.log('Vérification utilisateur:', email);
+      console.log('Document trouvé:', !snapshot.empty);
+
+      if (!snapshot.empty) {
+        // L'utilisateur existe dans notre base
+        const userData = snapshot.docs[0].data();
+        console.log('Données utilisateur:', userData);
+        return true;
+      }
+
+      return false;
     } catch (error) {
-      console.error('Erreur lors de l\'envoi de l\'email de réinitialisation:', error);
+      console.error('Erreur lors de la vérification de l\'email:', error);
+      throw error;
+    }
+  },
+
+  // Dans firebaseAuthService.js
+
+  // ------- Password Reset Flow -------
+  async resetPassword(email) {
+    try {
+      console.log('Starting password reset flow for:', email);
+      const userExists = await this.getUserByEmail(email);
+      if (!userExists) {
+        throw new Error('No account found with this email address');
+      }
+
+      // Create reset document in Firestore
+      const resetDoc = {
+        email: email.toLowerCase(),
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      };
+
+      // Add document to passwordResets collection
+      const resetRef = doc(collection(db, 'passwordResets'));
+      await setDoc(resetRef, resetDoc);
+
+      console.log('Reset document created with ID:', resetRef.id);
+
+      // Send email with resetId
+      await emailService.sendResetPasswordEmail(email, resetRef.id);
+
+      return {
+        id: resetRef.id,
+        ...resetDoc
+      };
+    } catch (error) {
+      console.error('Error in resetPassword:', error);
+      throw error;
+    }
+  },
+
+  // ------- Get Reset Document -------
+  async getResetDocument(resetId) {
+    try {
+      console.log('Fetching reset document:', resetId);
+      const resetRef = doc(db, 'passwordResets', resetId);
+      const resetDoc = await getDoc(resetRef);
+
+      if (!resetDoc.exists()) {
+        console.log('Reset document not found');
+        return null;
+      }
+
+      const data = resetDoc.data();
+
+      // Check expiration
+      if (data.expiresAt.toDate() < new Date()) {
+        await updateDoc(resetRef, { status: 'expired' });
+        return null;
+      }
+
+      return {
+        id: resetDoc.id,
+        ...data
+      };
+    } catch (error) {
+      console.error('Error getting reset document:', error);
+      throw error;
+    }
+  },
+
+  // ------- Complete Password Reset -------
+  async completePasswordReset(resetId, newPassword) {
+    try {
+      console.log('Completing password reset for document:', resetId);
+
+      // Get reset document
+      const resetDoc = await this.getResetDocument(resetId);
+      if (!resetDoc) {
+        throw new Error('Invalid or expired reset request');
+      }
+
+      if (resetDoc.status !== 'validated') {
+        throw new Error('Reset link not validated');
+      }
+
+      // Update user password
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      await updatePassword(user, newPassword);
+
+      // Update reset document status
+      const resetRef = doc(db, 'passwordResets', resetId);
+      await updateDoc(resetRef, {
+        status: 'completed',
+        completedAt: serverTimestamp()
+      });
+
+      console.log('Password reset completed successfully');
+      return true;
+    } catch (error) {
+      console.error('Error completing password reset:', error);
       throw error;
     }
   },
@@ -169,9 +295,37 @@ export const firebaseAuthService = {
     }
   },
 
+  // ------- Création d'un nouvel utilisateur -------
+  async createUser(email, password, userData) {
+    console.log('Tentative de création d\'utilisateur:', email);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const { user } = userCredential;
+
+      const userProfile = {
+        email: user.email,
+        role: 'member',
+        ...userData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      await setDoc(doc(db, 'users', user.uid), userProfile);
+      await sendEmailVerification(user);
+      console.log('Utilisateur créé et email de vérification envoyé');
+
+      return {
+        uid: user.uid,
+        ...userProfile
+      };
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'utilisateur:', error);
+      throw error;
+    }
+  },
+
   // ------- Renvoi de l'email de vérification -------
   async resendVerificationEmail() {
-    console.log('Tentative de renvoi de l\'email de vérification');
     try {
       const user = auth.currentUser;
       if (!user) {
@@ -186,41 +340,8 @@ export const firebaseAuthService = {
     }
   },
 
-  // ------- Création d'un nouvel utilisateur -------
-  async createUser(email, password, userData) {
-    console.log('Tentative de création d\'utilisateur:', email);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const { user } = userCredential;
-
-      // Créer le profil utilisateur dans Firestore
-      const userProfile = {
-        email: user.email,
-        role: 'member',
-        ...userData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      await setDoc(doc(db, 'users', user.uid), userProfile);
-
-      // Envoyer l'email de vérification
-      await sendEmailVerification(user);
-      console.log('Utilisateur créé et email de vérification envoyé');
-
-      return {
-        uid: user.uid,
-        ...userProfile
-      };
-    } catch (error) {
-      console.error('Erreur lors de la création de l\'utilisateur:', error);
-      throw error;
-    }
-  },
-
   // ------- Mise à jour du mot de passe -------
   async updatePassword(newPassword) {
-    console.log('Tentative de mise à jour du mot de passe');
     try {
       const user = auth.currentUser;
       if (!user) {

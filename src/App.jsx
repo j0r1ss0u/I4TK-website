@@ -29,6 +29,11 @@ import LibraryChat from "./Components/Library/LibraryChat";
 import FinalizeInvitation from './Components/Members/FinalizeInvitation';
 import { auth } from "./services/firebase";
 import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { LoginForm } from "./Components/AuthContext";
+import ForgotPassword from "./Components/Members/ForgotPassword";
+import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { db } from './services/firebase';
+
 
 // ================ QUERY CLIENT CONFIGURATION ================
 const queryClient = new QueryClient({
@@ -42,7 +47,7 @@ const queryClient = new QueryClient({
 // ================ APP CONTENT COMPONENT ================
 function AppContent() {
   // ===== State Management =====
-  const { user } = useAuth();
+  const { user, authPage, setAuthPage } = useAuth();
   const [currentPage, setCurrentPage] = useState("home");
   const [currentLang, setCurrentLang] = useState('en');
   const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +66,6 @@ function AppContent() {
         setIsLoading(false);
       }
     };
-
     checkProvider();
   }, []);
 
@@ -85,7 +89,6 @@ function AppContent() {
         console.error('Firebase connection error:', error);
       }
     };
-
     testConnection();
   }, []);
 
@@ -101,22 +104,54 @@ function AppContent() {
   // ===== Email Sign In Link Handler =====
   useEffect(() => {
     if (isSignInWithEmailLink(auth, window.location.href)) {
-      let email = window.localStorage.getItem('emailForInvitation');
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get('action');
+
+      let email = params.get('email');
       if (!email) {
-        email = window.prompt('Veuillez saisir votre email pour confirmation');
+        email = action === 'resetPassword' 
+          ? window.localStorage.getItem('emailForReset')
+          : window.localStorage.getItem('emailForInvitation');
+      }
+
+      if (!email) {
+        email = window.prompt('Please enter your email for confirmation');
       }
 
       signInWithEmailLink(auth, email, window.location.href)
-        .then(() => {
-          window.localStorage.removeItem('emailForInvitation');
-          setCurrentPage('finalize-invitation');  // Utilisation du système de pages existant
+        .then(async () => {
+          if (action === 'resetPassword') {
+            // 1. Disconnect user
+            await auth.signOut();
+
+            // 2. Update reset document status
+            const resetId = params.get('resetId');
+            if (resetId) {
+              const resetRef = doc(db, 'passwordResets', resetId);
+              await updateDoc(resetRef, {
+                status: 'validated',
+                validatedAt: serverTimestamp()
+              });
+            }
+
+            // 3. Clean up storage and show reset form
+            window.localStorage.removeItem('emailForReset');
+            setAuthPage('forgot-password');
+          } 
+          else if (params.get('invitationId')) {
+            // Keep existing invitation workflow
+            window.localStorage.removeItem('emailForInvitation');
+            setCurrentPage('finalize-invitation');
+          }
         })
         .catch((error) => {
-          console.error('Error completing sign-in:', error);
+          console.error('Error processing sign-in link:', error);
+          // Show error in auth page
+          setAuthPage('login');
         });
     }
-  }, []);
-  
+  }, [setAuthPage, setCurrentPage]);
+
   // ===== Language Handler =====
   const handleLanguageChange = (newLang) => {
     setCurrentLang(newLang);
@@ -147,6 +182,7 @@ function AppContent() {
           backgroundColor: '#ffffff'
         }}
       />
+
       {/* Header Section */}
       <div className="relative z-20">
         <Header 
@@ -156,6 +192,7 @@ function AppContent() {
           onLanguageChange={handleLanguageChange}
         />
       </div>
+
       {/* Main Content */}
       <div className="relative z-10 w-full">
         <main className="w-full overflow-x-hidden">
@@ -196,6 +233,15 @@ function AppContent() {
           {currentPage === "forum" && <ProtectedForumPage currentLang={currentLang} />}
         </main>
       </div>
+
+      {/* Modal ForgotPassword */}
+      {authPage === 'forgot-password' && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <ForgotPassword />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
