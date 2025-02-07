@@ -350,14 +350,14 @@ export const LoginForm = () => {
       {needsVerification && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
           <p className="text-sm text-yellow-800">
-            Veuillez vérifier votre email avant de vous connecter.
+            Please verify your email before connecting.
           </p>
           <button
             type="button"
             onClick={handleResendVerification}
             className="mt-2 text-sm text-yellow-600 hover:text-yellow-500 underline"
           >
-            Renvoyer l'email de vérification
+            Send verification email
           </button>
         </div>
       )}
@@ -394,7 +394,7 @@ export const LoginForm = () => {
             }}
             className="text-sm text-amber-600 hover:text-amber-500"
           >
-            Mot de passe oublié ?
+            Forgot password ?
           </button>
         </div>
 

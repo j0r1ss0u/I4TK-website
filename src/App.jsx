@@ -16,6 +16,7 @@ import { AuthProvider } from "./Components/AuthContext";
 import { MembersProvider } from './Components/Members/MembersContext';
 import { testFirebaseConnection } from "./services/firebase";
 import { useAuth } from "./Components/AuthContext";
+import { signOut, sendPasswordResetEmail} from 'firebase/auth';
 
 // Components
 import Header from './Components/Header';
@@ -31,7 +32,7 @@ import { auth } from "./services/firebase";
 import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { LoginForm } from "./Components/AuthContext";
 import ForgotPassword from "./Components/Members/ForgotPassword";
-import { collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from './services/firebase';
 
 
@@ -106,8 +107,8 @@ function AppContent() {
     if (isSignInWithEmailLink(auth, window.location.href)) {
       const params = new URLSearchParams(window.location.search);
       const action = params.get('action');
-
       let email = params.get('email');
+
       if (!email) {
         email = action === 'resetPassword' 
           ? window.localStorage.getItem('emailForReset')
@@ -121,32 +122,35 @@ function AppContent() {
       signInWithEmailLink(auth, email, window.location.href)
         .then(async () => {
           if (action === 'resetPassword') {
-            // 1. Disconnect user
-            await auth.signOut();
+            try {
+              // 1. Déconnexion immédiate
+              await signOut(auth);
 
-            // 2. Update reset document status
-            const resetId = params.get('resetId');
-            if (resetId) {
-              const resetRef = doc(db, 'passwordResets', resetId);
-              await updateDoc(resetRef, {
-                status: 'validated',
-                validatedAt: serverTimestamp()
-              });
+              // 2. Update Firestore
+              const resetId = params.get('resetId');
+              if (resetId) {
+                const resetRef = doc(db, 'passwordResets', resetId);
+                await updateDoc(resetRef, {
+                  status: 'validated',
+                  validatedAt: serverTimestamp()
+                });
+              }
+
+              // 3. Afficher le formulaire
+              window.localStorage.removeItem('emailForReset');
+              setAuthPage('forgot-password');
+            } catch (error) {
+              console.error('Error in reset password flow:', error);
+              setAuthPage('login');
             }
-
-            // 3. Clean up storage and show reset form
-            window.localStorage.removeItem('emailForReset');
-            setAuthPage('forgot-password');
-          } 
+          }
           else if (params.get('invitationId')) {
-            // Keep existing invitation workflow
             window.localStorage.removeItem('emailForInvitation');
             setCurrentPage('finalize-invitation');
           }
         })
         .catch((error) => {
           console.error('Error processing sign-in link:', error);
-          // Show error in auth page
           setAuthPage('login');
         });
     }
