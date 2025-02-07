@@ -238,7 +238,7 @@ const AdminView = () => {
       };
 
       await invitationsService.createInvitation(invitationData);
-      showNotification('Invitation envoyée avec succès');
+      showNotification('Invitation sent successfully');
       await loadData();
       setInviteForm({
         email: '',

@@ -3,8 +3,7 @@
 // Service de gestion des invitations utilisateurs
 // =================================================================
 
-import { db } from './firebase';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { emailService } from './emailService';
 import { 
   collection, 
@@ -116,92 +115,93 @@ export const invitationsService = {
 
   // ------- Acceptation d'une invitation -------
   async acceptInvitation(invitationId, userData) {
-    console.log('Début acceptInvitation avec:', { invitationId, userData });
-    try {
-      // 1. Récupération et validation de l'invitation
-      const invitationRef = doc(db, 'invitations', invitationId);
-      const invitationDoc = await getDoc(invitationRef);
+   console.log('Début acceptInvitation avec:', { invitationId, userData });
+   try {
+     // 1. Récupération et validation de l'invitation
+     const invitationRef = doc(db, 'invitations', invitationId);
+     const invitationDoc = await getDoc(invitationRef);
+     if (!invitationDoc.exists()) {
+       throw new Error('Invitation non trouvée');
+     }
 
-      if (!invitationDoc.exists()) {
-        throw new Error('Invitation non trouvée');
-      }
+     const invitation = invitationDoc.data();
 
-      const invitation = invitationDoc.data();
+     // 2. Vérifications de validité
+     if (invitation.status !== 'pending') {
+       throw new Error('Cette invitation n\'est plus valide');
+     }
 
-      // 2. Vérifications de validité
-      if (invitation.status !== 'pending') {
-        throw new Error('Cette invitation n\'est plus valide');
-      }
+     if (invitation.expiresAt.toDate() < new Date()) {
+       await updateDoc(invitationRef, { status: 'expired' });
+       throw new Error('Cette invitation a expiré');
+     }
 
-      if (invitation.expiresAt.toDate() < new Date()) {
-        await updateDoc(invitationRef, { status: 'expired' });
-        throw new Error('Cette invitation a expiré');
-      }
+     // 3. Vérification de l'utilisateur connecté
+     const currentUser = auth.currentUser;
+     if (!currentUser) {
+       throw new Error('Utilisateur non connecté');
+     }
 
-      // 3. Vérification de l'utilisateur connecté
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error('Utilisateur non connecté');
-      }
+     if (currentUser.email !== invitation.email) {
+       throw new Error('Cette invitation ne correspond pas à votre email');
+     }
 
-      if (currentUser.email !== invitation.email) {
-        throw new Error('Cette invitation ne correspond pas à votre email');
-      }
+     // 4. Préparation des données d'invitation
+     const invitationData = {
+       id: invitationId,
+       role: invitation.role,
+       organization: invitation.organization,
+       email: invitation.email
+     };
 
-      // 4. Préparation des données d'invitation
-      const invitationData = {
-        id: invitationId,
-        role: invitation.role,
-        organization: invitation.organization,
-        email: invitation.email
-      };
+     // 5. Mise à jour du mot de passe d'abord
+     await updatePassword(currentUser, userData.password);
 
-      // 5. Utilisation d'une transaction Firestore
-      await runTransaction(db, async (transaction) => {
-        // 5.1 Création/MAJ du profil utilisateur
-        const userRef = doc(db, 'users', currentUser.uid);
-        const userData = {
-          email: currentUser.email,
-          role: invitation.role,
-          organization: invitation.organization,
-          status: 'active',
-          emailVerified: true,
-          invitationId: invitationId,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        };
+     // 6. Création du profil et mise à jour de l'invitation dans une transaction
+     await runTransaction(db, async (transaction) => {
+       const userRef = doc(db, 'users', currentUser.uid);
+       const userProfile = {
+         email: currentUser.email,
+         role: invitation.role,
+         organization: invitation.organization,
+         status: 'active',
+         emailVerified: true,
+         invitationId: invitationId,
+         createdAt: serverTimestamp(),
+         updatedAt: serverTimestamp()
+       };
 
-        transaction.set(userRef, userData);
+       // Créer le profil utilisateur
+       transaction.set(userRef, userProfile);
 
-        // 5.2 Mise à jour du statut de l'invitation
-        transaction.update(invitationRef, {
-          status: 'accepted',
-          acceptedAt: serverTimestamp()
-        });
-      });
+       // Mettre à jour le statut de l'invitation
+       transaction.update(invitationRef, {
+         status: 'accepted',
+         acceptedAt: serverTimestamp()
+       });
+     });
 
-      // 6. Mise à jour du mot de passe (après la transaction réussie)
-      try {
-        await updatePassword(currentUser, userData.password);
-      } catch (error) {
-        console.error('Erreur lors de la mise à jour du mot de passe:', error);
-        // Ne pas throw ici, car le profil est déjà créé
-      }
+     // 7. Forcer un rafraîchissement de l'état d'authentification
+     await currentUser.reload();
 
-      // 7. Stockage temporaire des données pour AuthContext
-      localStorage.setItem('pendingInvitationData', JSON.stringify(invitationData));
+     // 8. Stocker temporairement les données pour AuthContext
+     localStorage.setItem('pendingInvitationData', JSON.stringify(invitationData));
 
-      console.log('Invitation acceptée avec succès');
-      return {
-        uid: currentUser.uid,
-        email: currentUser.email,
-        ...invitationData
-      };
+     console.log('Invitation acceptée avec succès');
 
-    } catch (error) {
-      console.error('Erreur complète dans acceptInvitation:', error);
-      throw error;
-    }
+     // 9. Attendre que les changements soient propagés
+     await new Promise(resolve => setTimeout(resolve, 2000));
+
+     return {
+       uid: currentUser.uid,
+       email: currentUser.email,
+       ...invitationData
+     };
+
+   } catch (error) {
+     console.error('Erreur complète dans acceptInvitation:', error);
+     throw error;
+   }
   },
 
   // ------- Annulation d'une invitation -------

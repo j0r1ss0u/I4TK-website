@@ -7,8 +7,10 @@ import React, { useState, useEffect } from 'react';
 import { invitationsService } from '../../services/invitationsService';
 import { documentsService } from '../../services/documentsService';
 import { torService } from '../../services/torService';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react' ;
+import { auth } from '../../services/firebase';
 import PasswordForm from './PasswordForm';
+  
 
 // =================================================================
 // Constantes
@@ -93,8 +95,16 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
         throw new Error('Terms of Reference must be accepted first');
       }
 
-      await invitationsService.acceptInvitation(invitation.id, { password });
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Attendre la création complète du profil
+      const userData = await invitationsService.acceptInvitation(invitation.id, { password });
+
+      // Forcer un rafraîchissement de l'état d'authentification
+      await auth.currentUser.reload();
+
+      // Attendre que les changements soient propagés
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Rediriger
       window.history.pushState({}, '', '/');
       setCurrentPage('home');
     } catch (error) {
