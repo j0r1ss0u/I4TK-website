@@ -3,7 +3,7 @@ import { AlertTriangle, Send, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '../../Components/AuthContext';
 import { auth, db } from '../../services/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { confirmPasswordReset } from 'firebase/auth';
+import { updatePassword, confirmPasswordReset } from 'firebase/auth';
 import PasswordForm from './PasswordForm';
 
 const ForgotPassword = () => {
@@ -22,32 +22,30 @@ const ForgotPassword = () => {
    setLoading(false);
  }, []);
 
- const handlePasswordSubmit = async ({ password }) => {
-   try {
-     const params = new URLSearchParams(window.location.search);
-     const oobCode = params.get('oobCode');
+  const handlePasswordSubmit = async ({ password }) => {
+    try {
+      if (!auth.currentUser) {
+        throw new Error('User not authenticated');
+      }
 
-     if (!oobCode) {
-       throw new Error('Reset code not found');
-     }
+      await updatePassword(auth.currentUser, password);
 
-     await confirmPasswordReset(auth, oobCode, password);
+      const params = new URLSearchParams(window.location.search);
+      const resetId = params.get('resetId');
+      if (resetId) {
+        const resetRef = doc(db, 'passwordResets', resetId);
+        await updateDoc(resetRef, {
+          status: 'completed',
+          completedAt: serverTimestamp()
+        });
+      }
 
-     const resetId = params.get('resetId');
-     if (resetId) {
-       const resetRef = doc(db, 'passwordResets', resetId);
-       await updateDoc(resetRef, {
-         status: 'completed',
-         completedAt: serverTimestamp()
-       });
-     }
-
-     setAuthPage('login');
-   } catch (error) {
-     console.error('Error during password reset:', error);
-     setError(error.message);
-   }
- };
+      setAuthPage('login');
+    } catch (error) {
+      console.error('Error during password reset:', error);
+      setError(error.message);
+    }
+  };
 
  const handleSubmit = async (e) => {
    e.preventDefault();

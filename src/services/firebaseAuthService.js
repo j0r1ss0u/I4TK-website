@@ -89,7 +89,7 @@ export const firebaseAuthService = {
       console.log('Tentative de connexion pour:', email);
 
       // Gestion des comptes spéciaux
-      if (email === 'admin@i4t.org' && password === 'admin') {
+      if (email === 'joris.galea@i4tknowledge.net' && password === 'I4TKop/admin') {
         console.log('Tentative de connexion avec compte admin');
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         return {
@@ -172,7 +172,6 @@ export const firebaseAuthService = {
     }
   },
 
-  // Dans firebaseAuthService.js
 
   // ------- Password Reset Flow -------
   async resetPassword(email) {

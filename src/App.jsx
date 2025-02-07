@@ -110,21 +110,21 @@ function AppContent() {
       let email = params.get('email');
 
       if (!email) {
+        email = window.prompt('Please enter your email for confirmation');
+      }
+      
+      if (!email) {
         email = action === 'resetPassword' 
           ? window.localStorage.getItem('emailForReset')
           : window.localStorage.getItem('emailForInvitation');
       }
 
-      if (!email) {
-        email = window.prompt('Please enter your email for confirmation');
-      }
 
       signInWithEmailLink(auth, email, window.location.href)
         .then(async () => {
           if (action === 'resetPassword') {
             try {
-              // 1. Déconnexion immédiate
-              await signOut(auth);
+              // 1. L'authentification est déjà faite par signInWithEmailLink
 
               // 2. Update Firestore
               const resetId = params.get('resetId');
@@ -136,7 +136,7 @@ function AppContent() {
                 });
               }
 
-              // 3. Afficher le formulaire
+              // 3. Afficher le formulaire (l'utilisateur est toujours authentifié)
               window.localStorage.removeItem('emailForReset');
               setAuthPage('forgot-password');
             } catch (error) {
@@ -166,7 +166,7 @@ function AppContent() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Chargement...</p>
+        <p>Loading...</p>
       </div>
     );
   }
