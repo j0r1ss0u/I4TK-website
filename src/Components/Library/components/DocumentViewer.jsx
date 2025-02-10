@@ -5,18 +5,49 @@ import { ExternalLink, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 // Configuration PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-// Gateway unique qui fonctionne pour tous les cas
+// Gateway principal avec proxy CORS public
 const GATEWAY = 'https://nftstorage.link/ipfs/';
+const CORS_PROXY = 'https://cors.eu.org/';  // Proxy CORS fiable et gratuit
+
+// Gateway de fallback en cas d'échec
+const FALLBACK_GATEWAY = 'https://cloudflare-ipfs.com/ipfs/';
+
+// Cache simple pour les documents
+const documentCache = new Map();
 
 const DocumentViewer = ({ documentCid }) => {
   const [state, setState] = useState({
     isLoading: true,
     error: null,
-    thumbnail: null
+    thumbnail: null,
+    useProxy: true // On commence avec le proxy
   });
 
   const loadingRef = useRef(false);
   const canvasRef = useRef(null);
+
+  const fetchDocument = async (url, useProxy = true) => {
+    // Vérifier le cache d'abord
+    const cacheKey = `${documentCid}-${useProxy}`;
+    if (documentCache.has(cacheKey)) {
+      return documentCache.get(cacheKey);
+    }
+
+    const finalUrl = useProxy ? `${CORS_PROXY}${url}` : url;
+
+    const response = await fetch(finalUrl, {
+      headers: {
+        'Accept': 'application/pdf,*/*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+
+    if (!response.ok) throw new Error('Erreur de chargement du PDF');
+
+    const data = await response.arrayBuffer();
+    documentCache.set(cacheKey, data); // Mettre en cache
+    return data;
+  };
 
   const loadDocument = async () => {
     if (loadingRef.current) return;
@@ -25,16 +56,16 @@ const DocumentViewer = ({ documentCid }) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const response = await fetch(`${GATEWAY}${documentCid}`, {
-        headers: {
-          'Accept': 'application/pdf,*/*',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
-
-      if (!response.ok) throw new Error('Erreur de chargement du PDF');
-
-      const pdfBuffer = await response.arrayBuffer();
+      // Essayer d'abord avec le gateway principal + proxy
+      const pdfBuffer = await fetchDocument(`${GATEWAY}${documentCid}`, state.useProxy)
+        .catch(async () => {
+          // Si ça échoue, essayer sans proxy
+          return await fetchDocument(`${GATEWAY}${documentCid}`, false)
+            .catch(async () => {
+              // En dernier recours, utiliser le fallback gateway
+              return await fetchDocument(`${FALLBACK_GATEWAY}${documentCid}`, false);
+            });
+        });
 
       const loadingTask = pdfjsLib.getDocument({
         data: pdfBuffer,
@@ -72,7 +103,8 @@ const DocumentViewer = ({ documentCid }) => {
       setState({
         isLoading: false,
         error: null,
-        thumbnail
+        thumbnail,
+        useProxy: true
       });
 
     } catch (error) {
@@ -81,7 +113,8 @@ const DocumentViewer = ({ documentCid }) => {
         ...prev,
         isLoading: false,
         error: 'Le document est temporairement inaccessible',
-        thumbnail: null
+        thumbnail: null,
+        useProxy: !prev.useProxy // Alterner l'utilisation du proxy au prochain essai
       }));
     } finally {
       loadingRef.current = false;
@@ -100,6 +133,16 @@ const DocumentViewer = ({ documentCid }) => {
       }
     };
   }, [documentCid]);
+
+  // Fonction pour obtenir l'URL d'ouverture appropriée
+  const getOpenUrl = () => {
+    // Si on a réussi avec le fallback, utiliser celui-ci
+    if (!state.useProxy) {
+      return `${FALLBACK_GATEWAY}${documentCid}`;
+    }
+    // Sinon utiliser le gateway principal
+    return `${GATEWAY}${documentCid}`;
+  };
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-4">
@@ -135,12 +178,11 @@ const DocumentViewer = ({ documentCid }) => {
         )}
       </div>
 
-      {/* Action Button - Single option for both mobile and desktop */}
       {state.thumbnail && (
         <div>
           <p className="text-xs text-gray-500 font-medium mb-1">Ouvrir :</p>
           <a
-            href={`${GATEWAY}${documentCid}`}
+            href={getOpenUrl()}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:underline text-sm flex items-center group"
