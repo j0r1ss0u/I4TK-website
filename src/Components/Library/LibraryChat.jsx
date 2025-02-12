@@ -8,6 +8,21 @@ const formatAuthors = (authors) => {
   return 'N/A';
 };
 
+const suggestedPrompts = {
+  en: [
+    'What is the I4TK Network?',
+    'What are the UNESCO guidelines?',
+    'What are the priorities for regulating platforms?',
+    'What are I4T regulatory priorities?'
+  ],
+  fr: [
+    'Qu\'est-ce que le réseau I4TK ?',
+    'Quelles sont les directives de l\'UNESCO ?',
+    'Quelles sont les priorités pour réguler les plateformes ?',
+    'Quelles sont les priorités réglementaires d\'I4T ?'
+  ]
+};
+
 const LibraryChat = ({ currentLang = 'en' }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
@@ -43,9 +58,33 @@ const LibraryChat = ({ currentLang = 'en' }) => {
     }
   };
 
+  const handlePromptClick = (prompt) => {
+    setInput(prompt);
+  };
+
   return (
     <div className="container mx-auto max-w-4xl p-4">
       <div className="flex flex-col min-h-[200px] max-h-[600px] bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
+        {messages.length === 0 && (
+          <div className="p-4 space-y-4">
+            <h3 className="text-lg font-medium text-gray-700">
+              {currentLang === 'en' ? 'Suggested Questions' : 'Questions Suggérées'}
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {suggestedPrompts[currentLang].map((prompt, index) => (
+                <button
+                  key={index}
+                  onClick={() => handlePromptClick(prompt)}
+                  className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-full 
+                           hover:bg-gray-200 transition-colors duration-200 text-left"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-4">
           {messages.map((message, index) => (
             <div
@@ -62,13 +101,26 @@ const LibraryChat = ({ currentLang = 'en' }) => {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{message.content}</p>
-                {message.sources?.length > 0 && (
+                {message.type === 'assistant' && (
                   <div className="mt-2 text-xs text-gray-600">
                     <p className="font-semibold">
                       {currentLang === 'en' ? 'Sources:' : 'Sources :'}
                     </p>
                     <div className="space-y-1">
-                      {message.sources.map((source, idx) => (
+                      {/* I4T Guidelines toujours en première position */}
+                      <p className="italic">
+                        <a 
+                          href="/guidelines"
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          I4T Guidelines - Full
+                        </a>
+                      </p>
+
+                      {/* Autres sources limitées à 3 pour avoir 4 au total avec les guidelines */}
+                      {message.sources?.slice(0, 3).map((source, idx) => (
                         <p key={idx} className="italic">
                           <a 
                             href={source.url} 

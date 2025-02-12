@@ -124,7 +124,7 @@ const HomePage = ({ currentLang, setCurrentPage, setActiveView }) => {
             label={currentLang === 'en' ? 'members' : 'membres'}
           />
           <StatCard
-            onClick={() => handleNavigation('members', 'map')}
+            onClick={() => handleNavigation('members')}
             textColor="text-blue-600"
             value={
               <div className="flex items-center justify-center">
