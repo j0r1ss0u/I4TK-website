@@ -13,16 +13,28 @@ const Pressrelease = () => {
         setIsSearching(true);
         const searchResults = await documentsService.semanticSearch('PRESS RELEASE');
 
-        const formattedResults = searchResults.map(result => ({
-          id: result.id,
-          title: result.title,
-          excerpt: result.description || result.excerpt,
-          author: result.author || result.creatorAddress,
-          ipfsCid: result.ipfsCid,
-          date: result.createdAt 
-            ? new Date(result.createdAt.seconds * 1000).toLocaleDateString()
-            : new Date().toLocaleDateString()
-        }));
+        // Formater et trier les résultats
+        const formattedResults = searchResults
+          .map(result => ({
+            id: result.id,
+            title: result.title,
+            excerpt: result.description || result.excerpt,
+            author: result.author || result.creatorAddress,
+            ipfsCid: result.ipfsCid,
+            createdAt: result.createdAt,  // Garder le timestamp original pour le tri
+            date: result.createdAt 
+              ? new Date(result.createdAt.seconds * 1000).toLocaleDateString()
+              : new Date().toLocaleDateString()
+          }))
+          .sort((a, b) => {
+            const dateA = a.createdAt?.seconds 
+              ? new Date(a.createdAt.seconds * 1000) 
+              : new Date();
+            const dateB = b.createdAt?.seconds 
+              ? new Date(b.createdAt.seconds * 1000) 
+              : new Date();
+            return dateB - dateA; // Tri décroissant (plus récent au plus ancien)
+          });
 
         setResults(formattedResults);
       } catch (err) {
@@ -32,18 +44,15 @@ const Pressrelease = () => {
         setIsSearching(false);
       }
     };
-
     searchPressReleases();
   }, []);
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h2 className="font-serif text-2xl font-bold mb-6">Press Releases</h2>
-
       {error && (
         <div className="text-red-600 mb-4 text-center">{error}</div>
       )}
-
       <div className="grid grid-cols-1 gap-6">
         {isSearching ? (
           <div className="flex justify-center p-4">
