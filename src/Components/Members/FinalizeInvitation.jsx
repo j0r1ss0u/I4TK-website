@@ -10,7 +10,6 @@ import { torService } from '../../services/torService';
 import { Loader2 } from 'lucide-react' ;
 import { auth } from '../../services/firebase';
 import PasswordForm from './PasswordForm';
-  
 
 // =================================================================
 // Constantes
@@ -25,7 +24,7 @@ const STEPS = {
 // Composant Principal
 // =================================================================
 
-const FinalizeInvitation = ({ setCurrentPage }) => {
+const FinalizeInvitation = ({ handlePageChange }) => {
   // ------- État local -------
   const [step, setStep] = useState(STEPS.TOR);
   const [loading, setLoading] = useState(true);
@@ -106,7 +105,7 @@ const FinalizeInvitation = ({ setCurrentPage }) => {
 
       // Rediriger
       window.history.pushState({}, '', '/');
-      setCurrentPage('home');
+      handlePageChange('home');
     } catch (error) {
       throw error;
     }

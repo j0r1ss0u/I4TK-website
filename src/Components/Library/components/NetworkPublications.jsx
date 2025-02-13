@@ -26,10 +26,10 @@ const NetworkPublications = ({
   searchResults,
   isSearching,
   error: searchError,
-  setCurrentPage,
+  handlePageChange,
   setSelectedTokenId
 }) => {
-  
+
   // =============== STATES ===============
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -134,6 +134,14 @@ const NetworkPublications = ({
     );
   };
 
+  // =============== NAVIGATION HANDLERS ===============
+  const handleViewGenealogy = (doc) => {
+    if (doc && doc.tokenId) {
+      handlePageChange("genealogy");
+      setSelectedTokenId(doc.tokenId);
+    }
+  };
+
   // =============== DOCUMENTS DISPLAY LOGIC ===============
   if (loading || isSearching) {
     return (
@@ -172,13 +180,6 @@ const NetworkPublications = ({
     );
   }
 
-  const handleViewGenealogy = (doc) => {
-    if (doc && doc.tokenId) {
-      setCurrentPage("genealogy");
-      setSelectedTokenId(doc.tokenId);
-    }
-  };
-  
   // =============== MAIN RENDER ===============
   return (
     <div className="grid grid-cols-1 gap-6">

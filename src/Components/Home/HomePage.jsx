@@ -39,7 +39,7 @@ const StatCard = ({ onClick, textColor, value, label }) => (
 );
 
 // ================ MAIN COMPONENT ================
-const HomePage = ({ currentLang, setCurrentPage, setActiveView }) => {
+const HomePage = ({ currentLang, handlePageChange, setActiveView }) => {
   // ===== STATE HOOKS =====
   const { members } = useMembers();
   const { user } = useAuth();
@@ -59,7 +59,7 @@ const HomePage = ({ currentLang, setCurrentPage, setActiveView }) => {
     } else {
       localStorage.removeItem('preferredView');
     }
-    setCurrentPage(page);
+    handlePageChange(page);
   };
 
   // ===== EFFECTS =====
@@ -174,7 +174,6 @@ const HomePage = ({ currentLang, setCurrentPage, setActiveView }) => {
           ) : (
             <LibraryRAG currentLang={currentLang} />
           )}
-
         </div>
       </div>
 

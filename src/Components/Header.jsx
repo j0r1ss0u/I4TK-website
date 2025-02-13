@@ -34,7 +34,7 @@ const LoginButton = () => {
 };
 
 // =============== NAVIGATION COMPONENT ===============
-const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) => {
+const Navigation = ({ currentPage, handlePageChange, isMobile, setIsMenuOpen }) => {
   const { user } = useAuth();
 
   // Définition de la hiérarchie des rôles et leurs accès
@@ -54,6 +54,7 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
     { id: "about", label: "About", public: true },
     { id: "members", label: "Members", public: true },
     { id: "library", label: "Library", public: true },
+    { id: "press-releases", label: "Press Releases", public: true },
     { id: "forum", label: "Forum", requiredRole: 'member' },
     { id: "chat", label: "Chat", requiredRole: 'admin' }
   ];
@@ -66,7 +67,7 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
   );
 
   const handleNavClick = (itemId) => {
-    setCurrentPage(itemId);
+    handlePageChange(itemId);
     if (isMobile) {
       setIsMenuOpen(false);
     }
@@ -97,7 +98,7 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
           <div className={`flex ${isMobile ? 'flex-col space-y-4' : 'items-center space-x-4'}`}>
             <div className="flex items-center space-x-2">
               <UserProfile />
-              {user.role !== 'guest' && <NotificationBell />}  {/* Ici ! */}
+              {user.role !== 'guest' && <NotificationBell handlePageChange={handlePageChange} />}
             </div>
             {showWalletConnect && <WalletConnect />}
           </div>
@@ -110,7 +111,7 @@ const Navigation = ({ currentPage, setCurrentPage, isMobile, setIsMenuOpen }) =>
 };
 
 // =============== HEADER COMPONENT ===============
-const Header = ({ currentPage, setCurrentPage, currentLang }) => {
+const Header = ({ currentPage, handlePageChange, currentLang }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -120,7 +121,7 @@ const Header = ({ currentPage, setCurrentPage, currentLang }) => {
           <div className="flex justify-between items-center w-full">
             <div className="flex items-center">
               <button 
-                onClick={() => setCurrentPage("home")}
+                onClick={() => handlePageChange("home")}
                 className="focus:outline-none hover:opacity-80 transition-opacity"
               >
                 <img
@@ -134,7 +135,7 @@ const Header = ({ currentPage, setCurrentPage, currentLang }) => {
             <div className="hidden md:block">
               <Navigation 
                 currentPage={currentPage} 
-                setCurrentPage={setCurrentPage}
+                handlePageChange={handlePageChange}
                 isMobile={false}
               />
             </div>
@@ -156,7 +157,7 @@ const Header = ({ currentPage, setCurrentPage, currentLang }) => {
             <div className="md:hidden w-full mt-4">
               <Navigation 
                 currentPage={currentPage} 
-                setCurrentPage={setCurrentPage}
+                handlePageChange={handlePageChange}
                 isMobile={true}
                 setIsMenuOpen={setIsMenuOpen}
               />

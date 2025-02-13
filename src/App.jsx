@@ -28,13 +28,13 @@ import { ProtectedForumPage } from "./Components/Forum/ForumPage";
 import GenealogyPage from "./Components/Library/GenealogyPage";
 import LibraryChat from "./Components/Library/LibraryChat";
 import FinalizeInvitation from './Components/Members/FinalizeInvitation';
+import Pressrelease from "./Components/About/Pressrelease";
 import { auth } from "./services/firebase";
 import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { LoginForm } from "./Components/AuthContext";
 import ForgotPassword from "./Components/Members/ForgotPassword";
 import { collection, doc, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from './services/firebase';
-
 
 // ================ QUERY CLIENT CONFIGURATION ================
 const queryClient = new QueryClient({
@@ -44,6 +44,19 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Liste des pages valides pour la navigation
+const VALID_PAGES = [
+  'home',
+  'about',
+  'members',
+  'library',
+  'press-releases',
+  'forum',
+  'chat',
+  'genealogy',
+  'finalize-invitation'
+];
 
 // ================ APP CONTENT COMPONENT ================
 function AppContent() {
@@ -55,6 +68,12 @@ function AppContent() {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('preferredView') || 'cards');
   const { address } = useAccount();
   const [selectedTokenId, setSelectedTokenId] = useState(null);
+
+  // ===== Page Change Handler =====
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.location.hash = newPage === 'home' ? '' : newPage;
+  };
 
   // ===== Provider Check Effect =====
   useEffect(() => {
@@ -68,6 +87,28 @@ function AppContent() {
       }
     };
     checkProvider();
+  }, []);
+
+  // ===== Hash Navigation Effect =====
+  useEffect(() => {
+    // Vérifier le hash au chargement
+    const hash = window.location.hash.slice(1);
+    if (hash && VALID_PAGES.includes(hash)) {
+      setCurrentPage(hash);
+    }
+
+    // Écouter les changements de hash
+    const handleHashChange = () => {
+      const newHash = window.location.hash.slice(1);
+      if (newHash && VALID_PAGES.includes(newHash)) {
+        setCurrentPage(newHash);
+      } else {
+        setCurrentPage('home');
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   // ===== Environment & Firebase Check Effect =====
@@ -112,21 +153,17 @@ function AppContent() {
       if (!email) {
         email = window.prompt('Please enter your email for confirmation');
       }
-      
+
       if (!email) {
         email = action === 'resetPassword' 
           ? window.localStorage.getItem('emailForReset')
           : window.localStorage.getItem('emailForInvitation');
       }
 
-
       signInWithEmailLink(auth, email, window.location.href)
         .then(async () => {
           if (action === 'resetPassword') {
             try {
-              // 1. L'authentification est déjà faite par signInWithEmailLink
-
-              // 2. Update Firestore
               const resetId = params.get('resetId');
               if (resetId) {
                 const resetRef = doc(db, 'passwordResets', resetId);
@@ -135,8 +172,6 @@ function AppContent() {
                   validatedAt: serverTimestamp()
                 });
               }
-
-              // 3. Afficher le formulaire (l'utilisateur est toujours authentifié)
               window.localStorage.removeItem('emailForReset');
               setAuthPage('forgot-password');
             } catch (error) {
@@ -146,7 +181,7 @@ function AppContent() {
           }
           else if (params.get('invitationId')) {
             window.localStorage.removeItem('emailForInvitation');
-            setCurrentPage('finalize-invitation');
+            handlePageChange('finalize-invitation');
           }
         })
         .catch((error) => {
@@ -154,7 +189,7 @@ function AppContent() {
           setAuthPage('login');
         });
     }
-  }, [setAuthPage, setCurrentPage]);
+  }, [setAuthPage, handlePageChange]);
 
   // ===== Language Handler =====
   const handleLanguageChange = (newLang) => {
@@ -191,7 +226,7 @@ function AppContent() {
       <div className="relative z-20">
         <Header 
           currentPage={currentPage} 
-          setCurrentPage={setCurrentPage}
+          handlePageChange={handlePageChange}
           currentLang={currentLang}
           onLanguageChange={handleLanguageChange}
         />
@@ -203,13 +238,13 @@ function AppContent() {
           {currentPage === "home" && (
             <HomePage 
               currentLang={currentLang} 
-              setCurrentPage={setCurrentPage}
+              handlePageChange={handlePageChange}
               setActiveView={setViewMode}
             />
           )}
           {currentPage === "about" && <AboutPage currentLang={currentLang} />}
           {currentPage === "finalize-invitation" && (
-            <FinalizeInvitation setCurrentPage={setCurrentPage} />
+            <FinalizeInvitation handlePageChange={handlePageChange} />
           )}
           {currentPage === "chat" && user?.role === "admin" && (
             <LibraryChat currentLang={currentLang} />
@@ -223,15 +258,18 @@ function AppContent() {
           {currentPage === "library" && (
             <LibraryPage 
               currentLang={currentLang} 
-              setCurrentPage={setCurrentPage}
+              handlePageChange={handlePageChange}
               setSelectedTokenId={setSelectedTokenId}
             />
+          )}
+          {currentPage === "press-releases" && (
+            <Pressrelease currentLang={currentLang} />
           )}
           {currentPage === "genealogy" && (
             <GenealogyPage 
               currentLang={currentLang}
               tokenId={selectedTokenId}
-              onBack={() => setCurrentPage("library")}
+              onBack={() => handlePageChange("library")}
             />
           )}
           {currentPage === "forum" && <ProtectedForumPage currentLang={currentLang} />}

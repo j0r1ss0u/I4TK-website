@@ -1,3 +1,4 @@
+// ================ IMPORTS ================
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { Bell } from 'lucide-react';
@@ -16,12 +17,15 @@ import {
   getDoc 
 } from 'firebase/firestore';
 
-const NotificationBell = ({ setCurrentPage }) => {
+// ================ NOTIFICATION BELL COMPONENT ================
+const NotificationBell = ({ handlePageChange }) => {
+  // ===== State Management =====
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
   const containerRef = useRef(null);
   const queryClient = useQueryClient();
 
+  // ===== Notifications Query =====
   const { data: notifications = [], isLoading, error } = useQuery({
     queryKey: ['notifications', user?.uid],
     queryFn: async () => {
@@ -45,6 +49,7 @@ const NotificationBell = ({ setCurrentPage }) => {
     refetchInterval: 1000 * 30,
   });
 
+  // ===== Unread Count Query =====
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['unreadCount', user?.uid],
     queryFn: async () => {
@@ -57,6 +62,7 @@ const NotificationBell = ({ setCurrentPage }) => {
     refetchInterval: 1000 * 30,
   });
 
+  // ===== Mark As Read Mutation =====
   const markAsReadMutation = useMutation({
     mutationFn: (notificationId) => 
       projectNotificationService.markNotificationAsRead(notificationId, user.uid),
@@ -66,21 +72,16 @@ const NotificationBell = ({ setCurrentPage }) => {
     },
   });
 
+  // ===== Event Handlers =====
   const handleNotificationClick = async (notification) => {
     try {
       await markAsReadMutation.mutateAsync(notification.id);
-      setCurrentPage('forum');
+      handlePageChange('forum');
       setIsOpen(false);
     } catch (error) {
       console.error('Error handling notification:', error);
     }
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.uid] });
-    }
-  }, [isOpen, queryClient, user?.uid]);
 
   const handleMouseEnter = () => {
     setIsOpen(true);
@@ -90,8 +91,17 @@ const NotificationBell = ({ setCurrentPage }) => {
     setIsOpen(false);
   };
 
+  // ===== Effects =====
+  useEffect(() => {
+    if (isOpen) {
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.uid] });
+    }
+  }, [isOpen, queryClient, user?.uid]);
+
+  // ===== Render Guard =====
   if (!user) return null;
 
+  // ===== Render Component =====
   return (
     <div 
       className="relative"

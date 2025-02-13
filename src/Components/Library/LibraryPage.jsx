@@ -44,7 +44,7 @@ const USER_PERMISSIONS = {
   LIBRARIAN_SPACE: 'admin'  // Nécessite aussi le rôle web3 Admin
 };
 
-const LibraryPage = () => {
+const LibraryPage = ({ currentLang, handlePageChange, setSelectedTokenId: updateSelectedTokenId }) => {
   // =============== STATES ===============
   const [activeTab, setActiveTab] = useState(TABS.NETWORK_PUBLICATIONS);
   const [searchTerm, setSearchTerm] = useState('');
@@ -73,6 +73,17 @@ const LibraryPage = () => {
   });
 
   const { user } = useAuth();
+
+  // =============== NAVIGATION HANDLERS ===============
+  const handleGenealogyNavigation = (tokenId) => {
+    setSelectedTokenId(tokenId);
+    handlePageChange('genealogy');
+  };
+
+  const handleBackToLibrary = () => {
+    setActiveTab(TABS.NETWORK_PUBLICATIONS);
+  };
+  
 
   // =============== CONTRACT READS ===============
   const { data: hasContributorRole } = useContractRead({
@@ -224,7 +235,7 @@ const LibraryPage = () => {
         return hasAccess('PEER_REVIEW') 
           ? <GenealogyPage
               tokenId={selectedTokenId}
-              onBack={() => setActiveTab(TABS.NETWORK_PUBLICATIONS)}
+              onBack={handleBackToLibrary}
               currentLang={'fr'}
             />
           : null;
@@ -241,7 +252,7 @@ const LibraryPage = () => {
             searchResults={searchResults}
             isSearching={isSearching}
             error={error}
-            setCurrentPage={setActiveTab}
+            handlePageChange={handlePageChange}
             setSelectedTokenId={setSelectedTokenId}
           />
         );
