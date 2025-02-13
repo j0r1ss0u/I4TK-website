@@ -87,30 +87,36 @@ export default function SubmitContribution() {
   // =============== EXTRACTION FUNCTION ===============
   const extractTokenIdFromEvent = (logs) => {
     console.log('=== Starting TokenID Extraction ===');
-    const tokenCreationEvent = logs.find(log => 
-      log.address.toLowerCase() === contractConfig.address.toLowerCase() && 
-      log.data.includes('tokenId')
+    console.log('Available logs:', logs);  // Pour debug
+
+    // Chercher l'événement contentProposed
+    const proposedEvent = logs.find(log => 
+      log.address.toLowerCase() === contractConfig.address.toLowerCase() &&
+      log.topics[0].includes('contentProposed')  // L'event signature est dans topics[0]
     );
 
-    if (!tokenCreationEvent) {
-      const transferEvent = logs.find(log => 
-        log.address.toLowerCase() === contractConfig.address.toLowerCase() &&
-        log.data
-      );
-
-      if (transferEvent) {
-        const tokenId = parseInt(transferEvent.data.slice(0, 66), 16);
-        console.log('TokenId from transfer event:', tokenId);
-        return tokenId;
-      }
-
-      console.error('Available logs:', logs);
-      throw new Error('Événement tokenCreation non trouvé');
+    if (proposedEvent) {
+      // Le tokenId est le second paramètre indexé (topics[2])
+      const tokenId = parseInt(proposedEvent.topics[2], 16);
+      console.log('TokenId extracted from contentProposed:', tokenId);
+      return tokenId;
     }
 
-    const tokenId = parseInt(tokenCreationEvent.data.slice(0, 66), 16);
-    console.log('TokenId extracted:', tokenId);
-    return tokenId;
+    // Fallback: chercher dans les Transfer events
+    const transferEvent = logs.find(log => 
+      log.address.toLowerCase() === contractConfig.address.toLowerCase() &&
+      log.topics[0].includes('Transfer')  // L'event Transfer standard ERC721
+    );
+
+    if (transferEvent) {
+      // Pour un Transfer, le tokenId est dans le dernier topic
+      const tokenId = parseInt(transferEvent.topics[3], 16);
+      console.log('TokenId extracted from Transfer:', tokenId);
+      return tokenId;
+    }
+
+    console.error('Available logs:', logs);
+    throw new Error('Événement de création de token non trouvé');
   };
 
   // =============== RECEIPT PROCESSING ===============
