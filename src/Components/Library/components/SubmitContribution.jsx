@@ -20,6 +20,8 @@ const CATEGORIES = [
   "Case Study",
   "Policy Brief",
   "Technical Report",
+  "Press Release",
+  "Terms of Reference",
   "Internal document"
 ];
 

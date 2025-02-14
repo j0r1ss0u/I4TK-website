@@ -83,7 +83,7 @@ const DocumentViewer = ({ documentCid }) => {
       }
     });
 
-    if (!response.ok) throw new Error('Erreur de chargement du PDF');
+    if (!response.ok) throw new Error('Error generating the preview - please open the document');
     return await response.arrayBuffer();
   };
 
@@ -192,7 +192,7 @@ const DocumentViewer = ({ documentCid }) => {
             className="absolute bottom-2 right-2 flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs hover:bg-blue-200 transition-colors"
           >
             <RefreshCw className="w-3 h-3" />
-            Réessayer
+            Retry
           </button>
         )}
       </div>
@@ -207,7 +207,7 @@ const DocumentViewer = ({ documentCid }) => {
 
       {(state.thumbnail || state.error) && (
         <div>
-          <p className="text-xs text-gray-500 font-medium mb-1">Ouvrir :</p>
+          <p className="text-xs text-gray-500 font-medium mb-1">Open :</p>
           <a
             href={getOpenUrl()}
             target="_blank"
@@ -215,7 +215,7 @@ const DocumentViewer = ({ documentCid }) => {
             className="text-blue-600 hover:underline text-sm flex items-center group"
           >
             <ExternalLink className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
-            Ouvrir le document
+            Open the document
           </a>
         </div>
       )}

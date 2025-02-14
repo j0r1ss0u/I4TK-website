@@ -1,5 +1,7 @@
+// src/Components/About/Pressrelease.jsx
 import React, { useState, useEffect } from 'react';
-import { documentsService } from '../../services/documentsService';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import DocumentViewer from '../Library/components/DocumentViewer';
 import LargeDocumentViewer from '../Library/components/LargeDocumentViewer';
 
@@ -9,12 +11,20 @@ const Pressrelease = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const searchPressReleases = async () => {
+    const fetchPressReleases = async () => {
       try {
         setIsSearching(true);
-        const searchResults = await documentsService.semanticSearch('PRESS RELEASE');
+        const documentsRef = collection(db, 'web3IP');
+        const q = query(documentsRef, where('categories', 'array-contains', 'Press Release'));
+        const snapshot = await getDocs(q);
 
-        const formattedResults = searchResults
+        const pressReleases = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          validationStatus: doc.data().validationStatus || "PENDING"
+        }));
+
+        const formattedResults = pressReleases
           .map(result => ({
             id: result.id,
             title: result.title,
@@ -37,13 +47,14 @@ const Pressrelease = () => {
           });
         setResults(formattedResults);
       } catch (err) {
-        console.error('Search error:', err);
+        console.error('Fetch error:', err);
         setError('Error loading press releases: ' + err.message);
       } finally {
         setIsSearching(false);
       }
     };
-    searchPressReleases();
+
+    fetchPressReleases();
   }, []);
 
   const renderLatestPressRelease = () => {

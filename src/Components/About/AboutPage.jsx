@@ -257,9 +257,8 @@ const AboutPage = () => {
 
           <div className="hidden md:flex space-x-8">
             {Object.entries({
-              [TABS.FOUNDERS]: 'Founding members',
               [TABS.ABOUT]: 'Events',
-              [TABS.PRESS_RELEASE]: 'Press Release',
+              [TABS.FOUNDERS]: 'Founding members',
               [TABS.TOR]: 'Terms of reference',
               [TABS.PRAI_PARTNERSHIP]: 'PRAI Partnership',
             }).map(([key, label]) => (

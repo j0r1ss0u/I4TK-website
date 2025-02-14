@@ -101,7 +101,7 @@ const LargeDocumentViewer = ({ documentCid }) => {
         await renderPage(1);
 
       } catch (error) {
-        console.error('Error loading PDF:', error);
+        console.error('Error generating the preview - please open the document:', error);
         setState(prev => ({ 
           ...prev, 
           loading: false,
@@ -141,7 +141,7 @@ const LargeDocumentViewer = ({ documentCid }) => {
 
         {state.error && !state.pdfLoaded && (
           <div className="flex justify-center items-center h-[600px] text-red-500">
-            Une erreur est survenue lors du chargement du document
+            Error generating the preview - please open the document
           </div>
         )}
 
@@ -188,7 +188,7 @@ const LargeDocumentViewer = ({ documentCid }) => {
           className="text-blue-600 hover:underline text-sm flex items-center group"
         >
           <ExternalLink className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" />
-          Ouvrir le document en plein écran
+          Open the document
         </a>
       </div>
     </div>
